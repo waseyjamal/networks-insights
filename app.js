@@ -1,7 +1,7 @@
 /**
  * NETWORKS INSIGHTS - CORE APPLICATION
  * Agent 3: JavaScript + HTML Templates
- * Version: 1.0
+ * Version: 1.1 (Updated: Filters Removed)
  * Dependencies: Agent 2 (Theme), Agent 1 (API)
  */
 
@@ -138,9 +138,9 @@ const NetworksApp = {
         this.fetchAPI('getCategories')
       ]);
 
+      // MODIFIED: Removed this.templates.filtersBar()
       const html = `
         ${this.templates.featuredSection(networksData?.networks || [])}
-        ${this.templates.filtersBar()}
         <div id="networks-grid">
           ${this.templates.networkGrid(networksData?.networks || [])}
         </div>
@@ -176,12 +176,12 @@ const NetworksApp = {
       const title = vertical === 'all' ? 'All Networks' : 
         `${vertical.charAt(0).toUpperCase() + vertical.slice(1)} Networks`;
       
+      // MODIFIED: Removed this.templates.filtersBar()
       const html = `
         <div class="page-header">
           <h1 class="page-title">${title}</h1>
           <p class="page-subtitle">Find the best ${vertical === 'all' ? 'affiliate' : vertical} networks with real reviews</p>
         </div>
-        ${this.templates.filtersBar()}
         <div id="networks-grid">
           ${this.templates.networkGrid(data?.networks || [])}
         </div>
@@ -379,6 +379,8 @@ const NetworksApp = {
   // ================= HTML TEMPLATES =================
 
   templates: {
+    // MODIFIED: filtersBar() function DELETED
+
     loading() {
       return `
         <div class="loading-spinner">
@@ -415,46 +417,6 @@ const NetworksApp = {
             ${networks.slice(0, 3).map(n => this.networkCard(n, true)).join('')}
           </div>
         </section>
-      `;
-    },
-
-    filtersBar() {
-      return `
-        <div class="filters-bar" id="category-filters">
-          <div class="filter-group">
-            <label class="filter-label">Sort by:</label>
-            <select class="filter-select" id="sortSelect" onchange="NetworksApp.handleSort(this.value)">
-              <option value="rating">Top Rated</option>
-              <option value="newest">Newest</option>
-              <option value="reviews">Most Reviews</option>
-              <option value="name">Name (A-Z)</option>
-            </select>
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">Tracking:</label>
-            <select class="filter-select" id="trackingFilter" onchange="NetworksApp.handleFilter('tracking', this.value)">
-              <option value="">All Software</option>
-              <option value="HasOffers">HasOffers</option>
-              <option value="Affise">Affise</option>
-              <option value="Cake">Cake</option>
-              <option value="Post Affiliate Pro">Post Affiliate Pro</option>
-            </select>
-          </div>
-          
-          <div class="filter-group">
-            <label class="filter-label">Payment:</label>
-            <select class="filter-select" id="paymentFilter" onchange="NetworksApp.handleFilter('payment', this.value)">
-              <option value="">All Methods</option>
-              <option value="PayPal">PayPal</option>
-              <option value="Wire">Wire Transfer</option>
-              <option value="Payoneer">Payoneer</option>
-              <option value="Bitcoin">Bitcoin</option>
-            </select>
-          </div>
-          
-          <div class="active-filters" id="activeFilters"></div>
-        </div>
       `;
     },
 
