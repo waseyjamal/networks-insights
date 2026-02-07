@@ -11,7 +11,7 @@ const SEOModule = {
     logoUrl: 'https://www.networksinsights.com/logo.png',
     twitterHandle: '@networksinsights',
     fbAppId: '', // Add if you have Facebook App
-    gaMeasurementId: 'G-YOUR_MEASUREMENT_ID' // Replace with your GA4 ID
+    gaMeasurementId: 'G-09Y5SL0JR6' // Replace with your GA4 ID
   },
 
   // Initialize SEO module
