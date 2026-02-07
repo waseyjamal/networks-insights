@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Homepage -->
+  <url>
+    <loc>https://www.networksinsights.com/</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Main Category Pages -->
+  <url>
+    <loc>https://www.networksinsights.com/p/affiliate-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/advertising-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/affiliate-programs.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Vertical Pages -->
+  <url>
+    <loc>https://www.networksinsights.com/p/dating-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/gambling-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/finance-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/crypto-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/health-networks.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Content Pages -->
+  <url>
+    <loc>https://www.networksinsights.com/p/reviews.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/resources.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/blog.html</loc>
+    <lastmod>2026-02-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Static Pages -->
+  <url>
+    <loc>https://www.networksinsights.com/p/about.html</loc>
+    <lastmod>2026-02-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/contact.html</loc>
+    <lastmod>2026-02-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/advertise.html</loc>
+    <lastmod>2026-02-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/privacy-policy.html</loc>
+    <lastmod>2026-02-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>https://www.networksinsights.com/p/terms.html</loc>
+    <lastmod>2026-02-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>
