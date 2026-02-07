@@ -8,18 +8,18 @@ const AdManager = {
   config: {
     // AdSense Settings (replace with your IDs when approved)
     adsense: {
-      clientId: 'ca-pub-YOUR_PUBLISHER_ID',
+      clientId: 'ca-pub-0000000000000000', // ⚠️ Replace when AdSense approved
       slots: {
-        topBanner: 'YOUR_TOP_BANNER_SLOT',
-        sidebar: 'YOUR_SIDEBAR_SLOT',
-        inline: 'YOUR_INLINE_SLOT'
+        topBanner: '0000000000',
+        sidebar: '0000000000',
+        inline: '0000000000'
       }
     },
     
     // Fallback Affiliate Banners (shown until AdSense approved or as backup)
     fallback: {
       enabled: true,
-      rotation: true, // Rotate multiple offers
+      rotation: true,
       
       // Top banner offers (728x90)
       topBanner: [
@@ -27,7 +27,7 @@ const AdManager = {
           name: 'MaxBounty',
           image: 'https://cdn.jsdelivr.net/gh/waseyjamal/networks-insights@main/ads/maxbounty-728x90.jpg',
           link: 'https://www.maxbounty.com/index.cfm?referer=networksinsights',
-          weight: 40 // 40% chance
+          weight: 40
         },
         {
           name: 'CJ Affiliate',
@@ -60,9 +60,7 @@ const AdManager = {
       ]
     },
     
-    // Targeting rules
     targeting: {
-      // Show specific ads on specific pages
       pageTargeting: {
         'dating-networks': ['dating', 'adult'],
         'gambling-networks': ['gambling', 'casino'],
@@ -78,15 +76,13 @@ const AdManager = {
   },
 
   detectAdType() {
-    // Check if AdSense is approved and loading
     this.useAdSense = typeof adsbygoogle !== 'undefined' && 
-                      this.config.adsense.clientId !== 'ca-pub-YOUR_PUBLISHER_ID';
+                      this.config.adsense.clientId !== 'ca-pub-0000000000000000';
     
     console.log('Ad Type:', this.useAdSense ? 'AdSense' : 'Fallback Affiliate');
   },
 
   renderAds() {
-    // Top Banner
     const topBanner = document.getElementById('adTopBanner');
     if (topBanner) {
       if (this.useAdSense) {
@@ -96,7 +92,6 @@ const AdManager = {
       }
     }
 
-    // Sidebar
     const sidebar = document.getElementById('adSidebar');
     if (sidebar) {
       if (this.useAdSense) {
@@ -125,10 +120,7 @@ const AdManager = {
       return;
     }
 
-    // Select offer based on weight
     const offer = this.selectByWeight(offers);
-    
-    // Track impression
     this.trackAdImpression(offer.name, position);
 
     container.innerHTML = `
@@ -146,7 +138,6 @@ const AdManager = {
       </a>
     `;
 
-    // Add click tracking
     container.querySelector('a').addEventListener('click', () => {
       this.trackAdClick(offer.name, position);
     });
@@ -185,7 +176,6 @@ const AdManager = {
   }
 };
 
-// Initialize when DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => AdManager.init());
 } else {
