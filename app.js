@@ -49,11 +49,7 @@ const NetworksApp = {
       this.renderResourcesPage();
     } else if (urlParams.get('network')) {
       this.renderNetworkDetail(urlParams.get('network'));
-    } else if (path.match(/\/p\/(\w+)\.html/)) {
-      // Try to load as network detail by slug
-      const slug = path.match(/\/p\/(\w+)\.html/)[1];
-      this.renderNetworkDetail(slug);
-    }
+    } 
   },
 
   // ================= API METHODS =================
@@ -751,7 +747,8 @@ const NetworksApp = {
           <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
             ${network.short_desc?.substring(0, 100)}...
           </p>
-          <a href="/p/${network.slug}.html" class="btn btn-primary btn-full">View Profile</a>
+          <a href="/p/network-detail.html?network=${network.slug}" class="btn btn-primary btn-full">View Profile</a>
+          
         </div>
       `;
     },
@@ -761,7 +758,7 @@ const NetworksApp = {
         <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 0.5rem; transition: background 0.2s; cursor: pointer;" 
              onmouseover="this.style.background='var(--bg-secondary)'" 
              onmouseout="this.style.background='transparent'"
-             onclick="window.location.href='/p/${network.slug}.html'">
+             onclick="window.location.href='/p/network-detail.html?network=${network.slug}'">
           <img src="${network.logo_url}" alt="${network.name}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">
           <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 600; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${network.name}</div>
