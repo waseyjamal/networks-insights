@@ -8,7 +8,7 @@ const SEOModule = {
   config: {
     siteName: 'Networks Insights',
     siteUrl: 'https://www.networksinsights.com',
-    logoUrl: 'https://www.networksinsights.com/logo.png',
+    logoUrl: 'logoUrl: 'https://cdn.jsdelivr.net/gh/waseyjamal/networks-insights@main/logo.png',',
     twitterHandle: '@networksinsights',
     fbAppId: '', // Add if you have Facebook App
     gaMeasurementId: 'G-09Y5SL0JR6' // Replace with your GA4 ID
