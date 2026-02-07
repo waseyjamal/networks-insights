@@ -472,7 +472,7 @@ const NetworksApp = {
           </div>
           
           <div class="card-footer">
-            <a href="/p/${network.slug}.html" class="btn btn-secondary">Details</a>
+            <a href="/p/network-detail.html?network=${network.slug}" class="btn-details">View Details</a>
             <a href="${network.join_url}" class="btn btn-primary btn-join" target="_blank" rel="noopener">
               Join Network
             </a>
