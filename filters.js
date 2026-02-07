@@ -1,7 +1,7 @@
 /**
  * NETWORKS INSIGHTS - ADVANCED FILTERING & SEARCH
  * Agent 4: Enhanced filtering, URL state, search
- * Version: 1.0
+ * Version: 1.1 (Fixed: Homepage Conflict)
  * Dependencies: Agent 3 (NetworksApp)
  */
 
@@ -274,14 +274,29 @@ const FilterEngine = {
     return labels[type] || `${type}: ${value}`;
   },
 
-  // ================= DATA FILTERING =================
+  // ================= DATA FILTERING (UPDATED) =================
 
   async applyFilters() {
+    // FIX: Only apply if we have active filters/search
+    const hasActiveFilters = Object.keys(this.state.filters).length > 0 || this.state.searchQuery;
+    const isHomepage = window.location.pathname === '/' || window.location.pathname === '/index.html';
+    
+    // On homepage with no filters, let Agent 3 handle it
+    if (isHomepage && !hasActiveFilters) {
+      return; 
+    }
+
     const container = document.getElementById('networks-grid');
     if (!container) return;
     
     // Show loading
     container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+    
+    // Hide Featured Section if we are filtering
+    const featuredSection = document.getElementById('featured-carousel');
+    if (featuredSection) {
+        featuredSection.style.display = 'none';
+    }
     
     let networks = [];
     let pagination = null;
@@ -477,7 +492,7 @@ const FilterEngine = {
         font-weight: 600;
         cursor: pointer;
         font-size: 0.875rem;
-      " onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='transparent'">
+        " onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='transparent'">
         View all results for "${query}"
       </div>
     `;
