@@ -1,15 +1,15 @@
 /**
  * NETWORKS INSIGHTS - CORE APPLICATION
- * Version: 2.0 (Fixed: Static Pages Support + Footer Pages)
- * Date: February 9, 2026
- * Dependencies: Theme, API
+ * Agent 3: JavaScript + HTML Templates
+ * Version: 2.0 (Fixed: Static Page Routing Guard)
+ * Dependencies: Agent 2 (Theme), Agent 1 (API)
  */
 
 const NetworksApp = {
   // Configuration from theme
   config: window.NI_CONFIG || {
     API_BASE_URL: 'https://script.google.com/macros/s/AKfycbw3Wiegd0Ni7jFKM_-9PFfhCBLFsDzueCJCObXqphRK5RUjZ99wjaFZVA2UhTGchwKM/exec',
-    CACHE_DURATION: 5 * 60 * 1000,
+    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
     ITEMS_PER_PAGE: 20
   },
 
@@ -24,102 +24,96 @@ const NetworksApp = {
     cache: new Map()
   },
 
-  // Static pages configuration with their content
-  staticPages: {
-    'about': { title: 'About Us', handler: 'renderAboutPage' },
-    'about_1': { title: 'About Us', handler: 'renderAboutPage' },
-    'contact-us_7': { title: 'Contact Us', handler: 'renderContactPage' },
-    'contact': { title: 'Contact Us', handler: 'renderContactPage' },
-    'resources_33': { title: 'Resources', handler: 'renderResourcesPage' },
-    'resources': { title: 'Resources', handler: 'renderResourcesPage' },
-    'affiliate-resources': { title: 'Affiliate Resources', handler: 'renderResourcesPage' },
-    'privacy-policy_56': { title: 'Privacy Policy', handler: 'renderPrivacyPage' },
-    'privacy-policy': { title: 'Privacy Policy', handler: 'renderPrivacyPage' },
-    'terms-of-service_7': { title: 'Terms of Service', handler: 'renderTermsPage' },
-    'terms': { title: 'Terms of Service', handler: 'renderTermsPage' },
-    'terms-of-service': { title: 'Terms of Service', handler: 'renderTermsPage' }
-  },
+  // ================= INITIALIZATION =================
 
-  // Initialize application
   init() {
-    console.log('NetworksApp initializing...');
+    console.log('[NetworksApp] Initializing...');
     
-    const dynamicContent = document.getElementById('dynamic-content');
-    const path = window.location.pathname;
-    const pageSlug = path.split('/').pop().replace('.html', '');
-    
-    console.log('Current path:', path, 'Page slug:', pageSlug);
-    
-    // Check if this is a static page
-    if (this.staticPages[pageSlug]) {
-      console.log('Static page detected:', pageSlug);
-      if (dynamicContent) {
-        // Render static content into the dynamic-content div
-        this.renderStaticPage(pageSlug);
-      }
-      // Always load sidebar data for static pages
-      this.loadSidebarData();
-      this.bindEvents();
-      return;
+    // 🛡️ ROUTING GUARD: Check if this is a static page FIRST
+    if (document.querySelector('[data-static-page]')) {
+      console.log('[NetworksApp] Static page detected - Stopping dynamic render');
+      return; // Exit immediately - let Blogger show the page
     }
     
-    // If no dynamic-content div and not a static page, exit
+    // Check if dynamic-content div exists
+    const dynamicContent = document.getElementById('dynamic-content');
     if (!dynamicContent) {
-      console.log('No dynamic-content div found, exiting');
+      console.log('[NetworksApp] No dynamic-content div - Static page mode');
       return;
     }
 
-    // Regular dynamic page handling
+    // Proceed with dynamic rendering
+    console.log('[NetworksApp] Dynamic page detected - Loading app');
     this.detectPageType();
     this.loadSidebarData();
     this.bindEvents();
   },
 
-  // Render static page content
-  renderStaticPage(slug) {
-    const container = document.getElementById('dynamic-content');
-    const pageConfig = this.staticPages[slug];
-    
-    if (!pageConfig || !this.templates[pageConfig.handler]) {
-      console.error('No handler found for static page:', slug);
-      container.innerHTML = this.templates.error('Page content not found');
-      return;
-    }
-    
-    console.log('Rendering static page:', slug, 'with handler:', pageConfig.handler);
-    container.innerHTML = this.templates[pageConfig.handler]();
-    
-    // Update page title
-    document.title = `${pageConfig.title} | Networks Insights`;
-  },
+  // ================= PAGE TYPE DETECTION =================
 
-  // Detect which page we're on
   detectPageType() {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
     
-    console.log('Detecting page type for:', path);
-    
+    console.log('[NetworksApp] Detecting page type for:', path);
+
+    // Priority 1: Homepage
     if (path === '/' || path === '/index.html') {
+      console.log('[NetworksApp] Page type: Homepage');
       this.renderHomepage();
-    } else if (path.includes('/p/affiliate-networks.html')) {
-      this.renderCategoryPage('all');
-    } else if (path.match(/\/p\/(\w+)-networks\.html/)) {
-      const vertical = path.match(/\/p\/(\w+)-networks\.html/)[1];
-      this.renderCategoryPage(vertical);
-    } else if (path.includes('/p/reviews.html') || path.includes('/p/reviews_')) {
-      this.renderReviewsPage();
-    } else if (path.includes('/p/resources.html') || path.includes('/p/resources_') || path.includes('/p/affiliate-resources')) {
-      this.renderResourcesPage();
-    } else if (urlParams.get('network')) {
-      this.renderNetworkDetail(urlParams.get('network'));
-    } else if (path.match(/\/p\/(\w+)\.html/)) {
-      const slug = path.match(/\/p\/(\w+)\.html/)[1];
-      // Check if it's a network detail page or static page
-      if (!this.staticPages[slug]) {
-        this.renderNetworkDetail(slug);
-      }
+      return;
     }
+
+    // Priority 2: Search results
+    if (urlParams.get('q')) {
+      console.log('[NetworksApp] Page type: Search');
+      this.renderSearchResults(urlParams.get('q'));
+      return;
+    }
+
+    // Priority 3: Network detail via query param ?network=slug
+    if (urlParams.get('network')) {
+      const networkSlug = urlParams.get('network');
+      console.log('[NetworksApp] Page type: Network Detail (query param):', networkSlug);
+      this.renderNetworkDetail(networkSlug);
+      return;
+    }
+
+    // Priority 4: Category pages - MUST check before network detail
+    // Pattern: /p/affiliate-networks.html or /p/dating-networks.html
+    const categoryMatch = path.match(/\/p\/([\w-]+)-networks\.html$/);
+    if (categoryMatch) {
+      const vertical = categoryMatch[1];
+      console.log('[NetworksApp] Page type: Category/Vertical:', vertical);
+      this.renderCategoryPage(vertical);
+      return;
+    }
+
+    // Priority 5: Reviews page
+    if (path.includes('/p/reviews.html')) {
+      console.log('[NetworksApp] Page type: Reviews');
+      this.renderReviewsPage();
+      return;
+    }
+
+    // Priority 6: Resources page
+    if (path.includes('/p/resources')) {
+      console.log('[NetworksApp] Page type: Resources');
+      this.renderResourcesPage();
+      return;
+    }
+
+    // Priority 7: Network detail via /p/{slug}.html
+    const networkMatch = path.match(/\/p\/([\w-]+)\.html$/);
+    if (networkMatch) {
+      const slug = networkMatch[1];
+      console.log('[NetworksApp] Page type: Network Detail (URL path):', slug);
+      this.renderNetworkDetail(slug);
+      return;
+    }
+
+    // Default: Unknown page type, don't interfere
+    console.log('[NetworksApp] Unknown page type - Letting Blogger handle it');
   },
 
   // ================= API METHODS =================
@@ -129,16 +123,15 @@ const NetworksApp = {
     const cached = this.getCache(cacheKey);
     
     if (cached) {
-      console.log('Cache hit:', cacheKey);
+      console.log('[NetworksApp] Cache hit:', cacheKey);
       return cached;
     }
 
     const queryString = new URLSearchParams({ action, ...params }).toString();
     const url = `${this.config.API_BASE_URL}?${queryString}`;
     
-    console.log('API Request:', url);
-    
     try {
+      console.log('[NetworksApp] API call:', action, params);
       const response = await fetch(url);
       const data = await response.json();
       
@@ -149,7 +142,7 @@ const NetworksApp = {
         throw new Error(data.error?.message || 'API Error');
       }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('[NetworksApp] API Error:', error);
       this.showError('Failed to load data. Please try again.');
       return null;
     }
@@ -168,7 +161,7 @@ const NetworksApp = {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('POST Error:', error);
+      console.error('[NetworksApp] POST Error:', error);
       return { success: false, error: { message: 'Submission failed' } };
     }
   },
@@ -199,7 +192,6 @@ const NetworksApp = {
   async renderHomepage() {
     const container = document.getElementById('dynamic-content');
     if (!container) return;
-    
     container.innerHTML = this.templates.loading();
 
     try {
@@ -228,7 +220,6 @@ const NetworksApp = {
   async renderCategoryPage(vertical) {
     const container = document.getElementById('dynamic-content');
     if (!container) return;
-    
     container.innerHTML = this.templates.loading();
 
     const params = {
@@ -270,7 +261,6 @@ const NetworksApp = {
   async renderNetworkDetail(slug) {
     const container = document.getElementById('dynamic-content');
     if (!container) return;
-    
     container.innerHTML = this.templates.loading();
 
     try {
@@ -290,10 +280,36 @@ const NetworksApp = {
       container.innerHTML = html;
       
       // Update page title
-      document.title = `${data.network.name} Reviews | ${data.network.ratings?.overall || '0.0'} Stars | Networks Insights`;
+      document.title = `${data.network.name} Reviews | ${data.network.ratings.overall} Stars | Networks Insights`;
       
     } catch (error) {
       container.innerHTML = this.templates.error('Failed to load network details');
+    }
+  },
+
+  // Search results renderer - THIS WAS MISSING IN YOUR ORIGINAL!
+  async renderSearchResults(query) {
+    const container = document.getElementById('dynamic-content');
+    if (!container) return;
+    container.innerHTML = this.templates.loading();
+
+    try {
+      const data = await this.fetchAPI('searchNetworks', { q: query });
+      
+      const html = `
+        <div class="page-header">
+          <h1 class="page-title">Search Results</h1>
+          <p class="page-subtitle">${data?.count || 0} results for "${query}"</p>
+        </div>
+        <div id="networks-grid">
+          ${this.templates.networkGrid(data?.results || [])}
+        </div>
+      `;
+      
+      container.innerHTML = html;
+      
+    } catch (error) {
+      container.innerHTML = this.templates.error('Search failed');
     }
   },
 
@@ -301,53 +317,56 @@ const NetworksApp = {
   async renderReviewsPage() {
     const container = document.getElementById('dynamic-content');
     if (!container) return;
-    
     container.innerHTML = this.templates.loading();
 
-    try {
-      // Fetch recent reviews from all networks
-      const networksData = await this.fetchAPI('getNetworks', { limit: 50, sort: 'newest' });
-      const networks = networksData?.networks || [];
-      
-      // Collect reviews from top networks
-      const allReviews = [];
-      for (const network of networks.slice(0, 10)) {
-        const data = await this.fetchAPI('getNetwork', { slug: network.slug });
-        if (data?.reviews) {
-          allReviews.push(...data.reviews.map(r => ({ ...r, networkName: network.name, networkSlug: network.slug })));
-        }
+    // Fetch recent reviews from all networks (simplified - in production, add dedicated endpoint)
+    const networksData = await this.fetchAPI('getNetworks', { limit: 50, sort: 'newest' });
+    const networks = networksData?.networks || [];
+    
+    // Collect reviews from top networks
+    const allReviews = [];
+    for (const network of networks.slice(0, 10)) {
+      const data = await this.fetchAPI('getNetwork', { slug: network.slug });
+      if (data?.reviews) {
+        allReviews.push(...data.reviews.map(r => ({ 
+          ...r, 
+          networkName: network.name, 
+          networkSlug: network.slug 
+        })));
       }
-      
-      // Sort by date
-      allReviews.sort((a, b) => new Date(b.date_posted) - new Date(a.date_posted));
-      
-      const html = `
-        <div class="page-header">
-          <h1 class="page-title">Recent Reviews</h1>
-          <p class="page-subtitle">Real feedback from affiliate marketers</p>
-        </div>
-        <div class="reviews-feed">
-          ${allReviews.slice(0, 20).map(review => this.templates.reviewCard(review, true)).join('')}
-        </div>
-      `;
-      
-      container.innerHTML = html;
-    } catch (error) {
-      container.innerHTML = this.templates.error('Failed to load reviews');
     }
+    
+    // Sort by date
+    allReviews.sort((a, b) => new Date(b.date_posted) - new Date(a.date_posted));
+    
+    const html = `
+      <div class="page-header">
+        <h1 class="page-title">Recent Reviews</h1>
+        <p class="page-subtitle">Real feedback from affiliate marketers</p>
+      </div>
+      <div class="reviews-feed">
+        ${allReviews.slice(0, 20).map(review => this.templates.reviewCard(review, true)).join('')}
+      </div>
+    `;
+    
+    container.innerHTML = html;
   },
 
   // Resources page renderer
   renderResourcesPage() {
     const container = document.getElementById('dynamic-content');
     if (!container) return;
-    
-    container.innerHTML = this.templates.renderResourcesPage();
-    document.title = 'Affiliate Resources | Networks Insights';
+    container.innerHTML = this.templates.resourcesPage();
   },
 
   // Load sidebar widgets data
   async loadSidebarData() {
+    // 🛡️ Skip if static page
+    if (document.querySelector('[data-static-page]')) {
+      console.log('[NetworksApp] Static page - Skipping sidebar load');
+      return;
+    }
+
     try {
       // Network of the Month
       const notmData = await this.fetchAPI('getNetworks', { limit: 1, network_of_month: 'true' });
@@ -360,8 +379,7 @@ const NetworksApp = {
       const featuredData = await this.fetchAPI('getNetworks', { limit: 3, featured: 'true' });
       const featuredContainer = document.getElementById('featuredSidebarList');
       if (featuredContainer && featuredData?.networks) {
-        featuredContainer.innerHTML = 
-          featuredData.networks.map(n => this.templates.sidebarNetworkItem(n)).join('');
+        featuredContainer.innerHTML = featuredData.networks.map(n => this.templates.sidebarNetworkItem(n)).join('');
       }
 
       // Update category counts
@@ -370,7 +388,7 @@ const NetworksApp = {
         this.updateCategoryDropdown(categories.categories);
       }
     } catch (error) {
-      console.error('Sidebar data loading error:', error);
+      console.error('[NetworksApp] Sidebar load error:', error);
     }
   },
 
@@ -398,7 +416,7 @@ const NetworksApp = {
         const page = parseInt(btn.dataset.page);
         if (page) {
           this.state.currentPage = page;
-          this.detectPageType();
+          this.detectPageType(); // Re-render
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       }
@@ -423,6 +441,7 @@ const NetworksApp = {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     
+    // Show loading state
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Submitting...';
@@ -446,6 +465,7 @@ const NetworksApp = {
   },
 
   trackOutboundClick(url) {
+    // Google Analytics tracking
     if (window.gtag) {
       gtag('event', 'click', {
         event_category: 'outbound',
@@ -510,7 +530,6 @@ const NetworksApp = {
             <div class="empty-icon">🔍</div>
             <h3>No networks found</h3>
             <p>Try adjusting your filters or search criteria</p>
-            <a href="/p/affiliate-networks.html" class="btn btn-primary" style="margin-top: 1rem;">Browse All Networks</a>
           </div>
         `;
       }
@@ -526,9 +545,7 @@ const NetworksApp = {
         <article class="network-card ${featuredClass}" data-slug="${network.slug}">
           ${sponsoredBadge}
           <div class="card-header">
-            <img src="${network.logo_url || 'https://via.placeholder.com/64?text=' + encodeURIComponent(network.name.charAt(0))}" 
-                 alt="${network.name}" class="network-logo" loading="lazy"
-                 onerror="this.src='https://via.placeholder.com/64?text=${encodeURIComponent(network.name.charAt(0))}'">
+            <img src="${network.logo_url || 'https://via.placeholder.com/64'}" alt="${network.name}" class="network-logo" loading="lazy">
             <div class="network-meta">
               <h3 class="network-name">${network.name}</h3>
               <span class="network-type">${network.type}</span>
@@ -558,7 +575,7 @@ const NetworksApp = {
           </div>
           
           <div class="card-footer">
-            <a href="/p/${network.slug}.html" class="btn-details">View Details</a>
+            <a href="/p/network-detail.html?network=${network.slug}" class="btn-details">View Details</a>
             <a href="${network.join_url}" class="btn btn-primary btn-join" target="_blank" rel="noopener">
               Join Network
             </a>
@@ -572,10 +589,9 @@ const NetworksApp = {
         <div class="network-detail">
           <div class="page-header" style="background: var(--card-bg); padding: 2rem; border-radius: 1rem; margin-bottom: 2rem;">
             <div style="display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap;">
-              <img src="${network.logo_url || 'https://via.placeholder.com/120?text=' + encodeURIComponent(network.name.charAt(0))}" 
+              <img src="${network.logo_url || 'https://via.placeholder.com/120'}" 
                    alt="${network.name}" 
-                   style="width: 120px; height: 120px; border-radius: 16px; border: 2px solid var(--border-color);"
-                   onerror="this.src='https://via.placeholder.com/120?text=${encodeURIComponent(network.name.charAt(0))}'">
+                   style="width: 120px; height: 120px; border-radius: 16px; border: 2px solid var(--border-color);">
               
               <div style="flex: 1; min-width: 250px;">
                 <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
@@ -587,8 +603,8 @@ const NetworksApp = {
                 
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
                   <div>
-                    <div style="font-size: 2rem; font-weight: 800; color: var(--success);">⭐ ${network.ratings?.overall || '0.0'}</div>
-                    <div style="font-size: 0.875rem; color: var(--text-muted);">${network.review_count || 0} reviews</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: var(--success);">⭐ ${network.ratings?.overall}</div>
+                    <div style="font-size: 0.875rem; color: var(--text-muted);">${network.review_count} reviews</div>
                   </div>
                   
                   <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -645,12 +661,12 @@ const NetworksApp = {
     },
 
     ratingBar(label, value) {
-      const percentage = ((value || 0) / 5) * 100;
+      const percentage = (value / 5) * 100;
       return `
         <div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
             <span style="font-size: 0.875rem; font-weight: 500;">${label}</span>
-            <span style="font-size: 0.875rem; font-weight: 600;">${value || '0.0'}/5</span>
+            <span style="font-size: 0.875rem; font-weight: 600;">${value}/5</span>
           </div>
           <div style="background: var(--bg-tertiary); height: 8px; border-radius: 4px; overflow: hidden;">
             <div style="background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%); 
@@ -720,15 +736,15 @@ const NetworksApp = {
               ${showNetwork ? `<div style="font-size: 0.875rem;"><a href="/p/${review.networkSlug}.html" style="color: var(--primary); text-decoration: none;">${review.networkName}</a></div>` : ''}
             </div>
             <div style="margin-left: auto; text-align: right;">
-              <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);">⭐ ${review.ratings?.overall || '0.0'}</div>
+              <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);">⭐ ${review.ratings?.overall}</div>
             </div>
           </div>
           
           <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Offers: ${'★'.repeat(review.ratings?.offers || 0)}${'☆'.repeat(5 - (review.ratings?.offers || 0))}</span>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Payout: ${'★'.repeat(review.ratings?.payout || 0)}${'☆'.repeat(5 - (review.ratings?.payout || 0))}</span>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Tracking: ${'★'.repeat(review.ratings?.tracking || 0)}${'☆'.repeat(5 - (review.ratings?.tracking || 0))}</span>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Support: ${'★'.repeat(review.ratings?.support || 0)}${'☆'.repeat(5 - (review.ratings?.support || 0))}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Offers: ${'★'.repeat(review.ratings?.offers)}${'☆'.repeat(5 - review.ratings?.offers)}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Payout: ${'★'.repeat(review.ratings?.payout)}${'☆'.repeat(5 - review.ratings?.payout)}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Tracking: ${'★'.repeat(review.ratings?.tracking)}${'☆'.repeat(5 - review.ratings?.tracking)}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Support: ${'★'.repeat(review.ratings?.support)}${'☆'.repeat(5 - review.ratings?.support)}</span>
           </div>
           
           <p style="line-height: 1.6; color: var(--text-secondary);">${review.comment}</p>
@@ -829,18 +845,17 @@ const NetworksApp = {
     notmWidget(network) {
       return `
         <div class="notm-card">
-          <img src="${network.logo_url || 'https://via.placeholder.com/80?text=' + encodeURIComponent(network.name.charAt(0))}" 
-               alt="${network.name}" class="notm-logo"
-               onerror="this.src='https://via.placeholder.com/80?text=${encodeURIComponent(network.name.charAt(0))}'">
+          <img src="${network.logo_url}" alt="${network.name}" class="notm-logo">
           <div class="notm-name">${network.name}</div>
           <div class="notm-badge">NETWORK OF THE MONTH</div>
           <div class="notm-rating">
             ${'★'.repeat(Math.round(network.ratings?.overall || 0))}${'☆'.repeat(5 - Math.round(network.ratings?.overall || 0))}
           </div>
           <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
-            ${network.short_desc?.substring(0, 100) || 'Top rated affiliate network'}...
+            ${network.short_desc?.substring(0, 100)}...
           </p>
-          <a href="/p/${network.slug}.html" class="btn btn-primary btn-full">View Profile</a>
+          <a href="/p/network-detail.html?network=${network.slug}" class="btn btn-primary btn-full">View Profile</a>
+          
         </div>
       `;
     },
@@ -850,216 +865,33 @@ const NetworksApp = {
         <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 0.5rem; transition: background 0.2s; cursor: pointer;" 
              onmouseover="this.style.background='var(--bg-secondary)'" 
              onmouseout="this.style.background='transparent'"
-             onclick="window.location.href='/p/${network.slug}.html'">
-          <img src="${network.logo_url || 'https://via.placeholder.com/40?text=' + encodeURIComponent(network.name.charAt(0))}" 
-               alt="${network.name}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;"
-               onerror="this.src='https://via.placeholder.com/40?text=${encodeURIComponent(network.name.charAt(0))}'">
+             onclick="window.location.href='/p/network-detail.html?network=${network.slug}'">
+          <img src="${network.logo_url}" alt="${network.name}" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">
           <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 600; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${network.name}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">⭐ ${network.ratings?.overall || '0.0'} • ${network.review_count || 0} reviews</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">⭐ ${network.ratings?.overall} • ${network.review_count} reviews</div>
           </div>
         </div>
       `;
     },
 
-    // ================= STATIC PAGE TEMPLATES =================
-
-    renderAboutPage() {
-      return `
-        <div class="page-header">
-          <h1 class="page-title">About Networks Insights</h1>
-          <p class="page-subtitle">Your trusted affiliate network directory</p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>Who We Are</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            Networks Insights is the most comprehensive affiliate network directory, helping affiliate marketers 
-            discover, compare, and review CPA, CPL, CPS, and CPI networks worldwide. Founded in 2025, we've grown 
-            to become a trusted resource for both beginners and experienced affiliates.
-          </p>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            Our platform features real reviews from actual affiliates, detailed network profiles, payment proofs, 
-            and comprehensive filtering tools to help you find the perfect network for your marketing needs.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>What We Offer</h2>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
-            <div style="text-align: center; padding: 1.5rem; background: var(--bg-secondary); border-radius: 0.75rem;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📊</div>
-              <h4>Network Directory</h4>
-              <p style="font-size: 0.875rem; color: var(--text-muted);">Browse 1000+ affiliate networks with detailed profiles</p>
-            </div>
-            <div style="text-align: center; padding: 1.5rem; background: var(--bg-secondary); border-radius: 0.75rem;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⭐</div>
-              <h4>Real Reviews</h4>
-              <p style="font-size: 0.875rem; color: var(--text-muted);">Read authentic reviews from fellow affiliates</p>
-            </div>
-            <div style="text-align: center; padding: 1.5rem; background: var(--bg-secondary); border-radius: 0.75rem;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔍</div>
-              <h4>Advanced Filters</h4>
-              <p style="font-size: 0.875rem; color: var(--text-muted);">Filter by vertical, payment, tracking & more</p>
-            </div>
-            <div style="text-align: center; padding: 1.5rem; background: var(--bg-secondary); border-radius: 0.75rem;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💰</div>
-              <h4>Payment Proofs</h4>
-              <p style="font-size: 0.875rem; color: var(--text-muted);">View verified payment screenshots</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="widget">
-          <h2>Our Mission</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            We believe in transparency and trust in the affiliate marketing industry. Our mission is to empower 
-            affiliates with the information they need to make informed decisions about which networks to work with. 
-            By providing a platform for honest reviews and detailed comparisons, we help build a more trustworthy 
-            affiliate ecosystem for everyone.
-          </p>
-        </div>
-      `;
-    },
-
-    renderContactPage() {
-      return `
-        <div class="page-header">
-          <h1 class="page-title">Contact Us</h1>
-          <p class="page-subtitle">We'd love to hear from you</p>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
-          <div class="widget">
-            <h2>Get in Touch</h2>
-            <p style="margin-top: 1rem; line-height: 1.6;">
-              Have a question, suggestion, or want to list your network? Reach out to us using the form or contact methods below.
-            </p>
-            
-            <div style="margin-top: 2rem;">
-              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                <div style="width: 48px; height: 48px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">📧</div>
-                <div>
-                  <div style="font-weight: 600;">Email</div>
-                  <a href="mailto:admin@networksinsights.com" style="color: var(--primary); text-decoration: none;">admin@networksinsights.com</a>
-                </div>
-              </div>
-              
-              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                <div style="width: 48px; height: 48px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">💬</div>
-                <div>
-                  <div style="font-weight: 600;">Telegram</div>
-                  <a href="https://t.me/networksinsights" target="_blank" style="color: var(--primary); text-decoration: none;">@networksinsights</a>
-                </div>
-              </div>
-              
-              <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="width: 48px; height: 48px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">🐦</div>
-                <div>
-                  <div style="font-weight: 600;">Twitter</div>
-                  <a href="https://twitter.com/networksinsights" target="_blank" style="color: var(--primary); text-decoration: none;">@networksinsights</a>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="widget">
-            <h2>Send a Message</h2>
-            <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
-              <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Your Name</label>
-                <input type="text" name="name" required class="form-input" placeholder="John Doe">
-              </div>
-              <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Email</label>
-                <input type="email" name="email" required class="form-input" placeholder="john@example.com">
-              </div>
-              <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Subject</label>
-                <select name="subject" class="filter-select" style="width: 100%;">
-                  <option value="general">General Inquiry</option>
-                  <option value="advertise">Advertising</option>
-                  <option value="list-network">List My Network</option>
-                  <option value="report">Report an Issue</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Message</label>
-                <textarea name="message" required class="form-input" rows="4" placeholder="Your message..." style="resize: vertical;"></textarea>
-              </div>
-              <button type="submit" class="btn btn-primary">Send Message</button>
-            </form>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">
-              * For network submissions, please use our <a href="/p/add-network.html" style="color: var(--primary);">Add Network</a> page.
-            </p>
-          </div>
-        </div>
-      `;
-    },
-
-    renderResourcesPage() {
+    resourcesPage() {
       const resources = [
-        { 
-          category: 'Traffic Sources', 
-          icon: '🚀',
-          items: [
-            { name: 'PropellerAds', desc: 'Push notifications & pop traffic', url: 'https://propellerads.com' },
-            { name: 'MegaPush', desc: 'Push notification advertising', url: 'https://megapush.com' },
-            { name: 'ZeroPark', desc: 'Domain & pop traffic', url: 'https://zeropark.com' },
-            { name: 'Taboola', desc: 'Native advertising platform', url: 'https://taboola.com' },
-            { name: 'Outbrain', desc: 'Content discovery network', url: 'https://outbrain.com' }
-          ]
-        },
-        { 
-          category: 'Spy Tools', 
-          icon: '🔍',
-          items: [
-            { name: 'AdPlexity', desc: 'Ad intelligence platform', url: 'https://adplexity.com' },
-            { name: 'Anstrex', desc: 'Native & push ad spy tool', url: 'https://anstrex.com' },
-            { name: 'SpyOver', desc: 'Native ad monitoring', url: 'https://spyover.com' },
-            { name: 'AdBeat', desc: 'Competitive intelligence', url: 'https://adbeat.com' }
-          ]
-        },
-        { 
-          category: 'Tracking', 
-          icon: '📊',
-          items: [
-            { name: 'Voluum', desc: 'Performance tracking platform', url: 'https://voluum.com' },
-            { name: 'Binom', desc: 'Self-hosted tracker', url: 'https://binom.org' },
-            { name: 'RedTrack', desc: 'Cloud-based tracker', url: 'https://redtrack.io' },
-            { name: 'BeMob', desc: 'Free cloud tracker', url: 'https://bemob.com' }
-          ]
-        },
-        { 
-          category: 'Landing Page Builders', 
-          icon: '🛠️',
-          items: [
-            { name: 'Unbounce', desc: 'Landing page builder', url: 'https://unbounce.com' },
-            { name: 'Instapage', desc: 'Post-click optimization', url: 'https://instapage.com' },
-            { name: 'ClickFunnels', desc: 'Sales funnel builder', url: 'https://clickfunnels.com' },
-            { name: 'Leadpages', desc: 'Landing page creator', url: 'https://leadpages.com' }
-          ]
-        },
-        { 
-          category: 'Design Tools', 
-          icon: '🎨',
-          items: [
-            { name: 'Canva', desc: 'Graphic design tool', url: 'https://canva.com' },
-            { name: 'Figma', desc: 'UI/UX design platform', url: 'https://figma.com' },
-            { name: 'Photopea', desc: 'Free Photoshop alternative', url: 'https://photopea.com' }
-          ]
-        },
-        { 
-          category: 'Learning Resources', 
-          icon: '📚',
-          items: [
-            { name: 'AffFix', desc: 'Affiliate marketing forum', url: 'https://afffix.com' },
-            { name: 'STM Forum', desc: 'Premium affiliate forum', url: 'https://stmforum.com' },
-            { name: 'AffiliateFix', desc: 'Affiliate community', url: 'https://affiliatefix.com' },
-            { name: 'CharlesNgo', desc: 'Affiliate marketing blog', url: 'https://charlesngo.com' }
-          ]
-        }
+        { category: 'Traffic Sources', items: [
+          { name: 'PropellerAds', desc: 'Push notifications & pop traffic', url: '#' },
+          { name: 'MegaPush', desc: 'Push notification advertising', url: '#' },
+          { name: 'ZeroPark', desc: 'Domain & pop traffic', url: '#' }
+        ]},
+        { category: 'Spy Tools', items: [
+          { name: 'AdPlexity', desc: 'Ad intelligence platform', url: '#' },
+          { name: 'Anstrex', desc: 'Native & push ad spy tool', url: '#' },
+          { name: 'SpyOver', desc: 'Native ad monitoring', url: '#' }
+        ]},
+        { category: 'Tracking', items: [
+          { name: 'Voluum', desc: 'Performance tracking platform', url: '#' },
+          { name: 'Binom', desc: 'Self-hosted tracker', url: '#' },
+          { name: 'RedTrack', desc: 'Cloud-based tracker', url: '#' }
+        ]}
       ];
 
       return `
@@ -1068,200 +900,29 @@ const NetworksApp = {
           <p class="page-subtitle">Essential tools and traffic sources for affiliate marketers</p>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
           ${resources.map(cat => `
             <div class="widget">
-              <h3 style="margin-bottom: 1rem; color: var(--primary);">${cat.icon} ${cat.category}</h3>
+              <h3 style="margin-bottom: 1rem; color: var(--primary);">${cat.category}</h3>
               <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 ${cat.items.map(item => `
-                  <a href="${item.url}" target="_blank" rel="noopener noreferrer nofollow" 
+                  <a href="${item.url}" target="_blank" rel="noopener" 
                      style="display: block; padding: 1rem; background: var(--bg-secondary); border-radius: 0.5rem; text-decoration: none; color: inherit; transition: all 0.2s;"
                      onmouseover="this.style.background='var(--primary-light)'" 
                      onmouseout="this.style.background='var(--bg-secondary)'">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <div>
-                        <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.name}</div>
-                        <div style="font-size: 0.875rem; color: var(--text-muted);">${item.desc}</div>
-                      </div>
-                      <span style="color: var(--primary);">→</span>
-                    </div>
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.name}</div>
+                    <div style="font-size: 0.875rem; color: var(--text-muted);">${item.desc}</div>
                   </a>
                 `).join('')}
               </div>
             </div>
           `).join('')}
         </div>
-        
-        <div class="widget" style="margin-top: 2rem; text-align: center;">
-          <h3>Want to suggest a resource?</h3>
-          <p style="color: var(--text-muted); margin: 1rem 0;">If you know a great tool that should be listed here, let us know!</p>
-          <a href="/p/contact-us_7.html" class="btn btn-primary">Suggest a Resource</a>
-        </div>
-      `;
-    },
-
-    renderPrivacyPage() {
-      return `
-        <div class="page-header">
-          <h1 class="page-title">Privacy Policy</h1>
-          <p class="page-subtitle">How we handle your data</p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <p style="line-height: 1.8;">
-            At Networks Insights, we take your privacy seriously. This Privacy Policy explains how we collect, 
-            use, and protect your personal information when you use our website.
-          </p>
-          <p style="margin-top: 1rem; color: var(--text-muted);">Last updated: February 2026</p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>Information We Collect</h2>
-          <ul style="margin-top: 1rem; padding-left: 1.5rem; line-height: 2;">
-            <li><strong>Personal Information:</strong> Name, email address when you submit reviews or contact us</li>
-            <li><strong>Usage Data:</strong> Pages visited, time spent, clicks (via Google Analytics)</li>
-            <li><strong>Device Information:</strong> Browser type, IP address, operating system</li>
-            <li><strong>Cookies:</strong> Small files stored on your device to enhance user experience</li>
-          </ul>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>How We Use Your Information</h2>
-          <ul style="margin-top: 1rem; padding-left: 1.5rem; line-height: 2;">
-            <li>To provide and maintain our services</li>
-            <li>To process and display your reviews</li>
-            <li>To communicate with you about your inquiries</li>
-            <li>To improve our website and user experience</li>
-            <li>To detect and prevent fraud or abuse</li>
-          </ul>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>Data Protection</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            We implement appropriate security measures to protect your personal information. However, no method 
-            of transmission over the internet is 100% secure, and we cannot guarantee absolute security.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>Third-Party Services</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            We use third-party services including Google Analytics for usage tracking and Google Sheets for data storage. 
-            These services may collect information according to their own privacy policies.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>Your Rights</h2>
-          <ul style="margin-top: 1rem; padding-left: 1.5rem; line-height: 2;">
-            <li>Request access to your personal data</li>
-            <li>Request correction of inaccurate data</li>
-            <li>Request deletion of your data</li>
-            <li>Opt-out of marketing communications</li>
-          </ul>
-        </div>
-        
-        <div class="widget">
-          <h2>Contact Us</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            If you have any questions about this Privacy Policy, please contact us at 
-            <a href="mailto:admin@networksinsights.com" style="color: var(--primary);">admin@networksinsights.com</a>.
-          </p>
-        </div>
-      `;
-    },
-
-    renderTermsPage() {
-      return `
-        <div class="page-header">
-          <h1 class="page-title">Terms of Service</h1>
-          <p class="page-subtitle">Rules and guidelines for using our platform</p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <p style="line-height: 1.8;">
-            By accessing and using Networks Insights, you agree to comply with and be bound by the following 
-            terms and conditions. Please read these terms carefully before using our website.
-          </p>
-          <p style="margin-top: 1rem; color: var(--text-muted);">Last updated: February 2026</p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>1. Acceptance of Terms</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            By accessing this website, you accept these Terms of Service in full. If you disagree with any part 
-            of these terms, you must not use our website.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>2. User Conduct</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">When using our platform, you agree NOT to:</p>
-          <ul style="margin-top: 1rem; padding-left: 1.5rem; line-height: 2;">
-            <li>Submit false or misleading reviews</li>
-            <li>Use offensive, abusive, or inappropriate language</li>
-            <li>Attempt to manipulate ratings or reviews</li>
-            <li>Post spam or promotional content without authorization</li>
-            <li>Violate any applicable laws or regulations</li>
-            <li>Attempt to gain unauthorized access to our systems</li>
-          </ul>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>3. Reviews and Content</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            By submitting reviews or other content to Networks Insights, you grant us a non-exclusive, 
-            royalty-free license to use, modify, and display that content. You represent that you have the 
-            right to submit such content and that it does not violate any third-party rights.
-          </p>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            We reserve the right to remove any content that violates these terms or that we deem inappropriate 
-            at our sole discretion.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>4. Disclaimer</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            Networks Insights provides information and reviews for informational purposes only. We do not 
-            endorse any specific affiliate network and are not responsible for any business relationships 
-            formed through our platform.
-          </p>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            Reviews reflect the opinions of individual users and not necessarily those of Networks Insights. 
-            We make no warranties about the accuracy or completeness of any information on our site.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>5. Limitation of Liability</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            Networks Insights shall not be liable for any direct, indirect, incidental, consequential, or 
-            punitive damages arising from your use of or inability to use our website.
-          </p>
-        </div>
-        
-        <div class="widget" style="margin-bottom: 2rem;">
-          <h2>6. Changes to Terms</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            We reserve the right to modify these Terms of Service at any time. Changes will be effective 
-            immediately upon posting. Your continued use of the website constitutes acceptance of the modified terms.
-          </p>
-        </div>
-        
-        <div class="widget">
-          <h2>7. Contact Information</h2>
-          <p style="line-height: 1.8; margin-top: 1rem;">
-            For questions about these Terms of Service, please contact us at 
-            <a href="mailto:admin@networksinsights.com" style="color: var(--primary);">admin@networksinsights.com</a>.
-          </p>
-        </div>
       `;
     }
   },
 
-  // ================= FILTER HANDLERS =================
+  // ================= FILTER HANDLERS (Agent 4 extends these) =================
 
   handleSort(sortBy) {
     this.state.currentFilters.sort = sortBy;
