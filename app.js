@@ -27,28 +27,21 @@ const NetworksApp = {
   // ================= INITIALIZATION =================
 
   init() {
-    console.log('[NetworksApp] Initializing...');
-    
-    // 🛡️ ROUTING GUARD: Check if this is a static page FIRST
-    if (document.querySelector('[data-static-page]')) {
-      console.log('[NetworksApp] Static page detected - Stopping dynamic render');
-      return; // Exit immediately - let Blogger show the page
-    }
-    
-    // Check if dynamic-content div exists
-    const dynamicContent = document.getElementById('dynamic-content');
-    if (!dynamicContent) {
-      console.log('[NetworksApp] No dynamic-content div - Static page mode');
-      return;
-    }
+  console.log('[NetworksApp] Initializing...');
+  
+  // Check if dynamic-content div exists
+  const dynamicContent = document.getElementById('dynamic-content');
+  if (!dynamicContent) {
+    console.log('[NetworksApp] No dynamic-content div - Static page mode');
+    return;
+  }
 
-    // Proceed with dynamic rendering
-    console.log('[NetworksApp] Dynamic page detected - Loading app');
-    this.detectPageType();
-    this.loadSidebarData();
-    this.bindEvents();
-  },
-
+  // Proceed with dynamic rendering
+  console.log('[NetworksApp] Dynamic page detected - Loading app');
+  this.detectPageType();
+  this.loadSidebarData();
+  this.bindEvents();
+}
   // ================= PAGE TYPE DETECTION =================
 
   detectPageType() {
