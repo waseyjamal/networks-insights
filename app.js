@@ -26,7 +26,14 @@ const NetworksApp = {
 
   // Initialize application
  init() {
-  // Skip static pages completely
+  // Check if we're on a static page (no dynamic-content div)
+  const dynamicContent = document.getElementById('dynamic-content');
+  if (!dynamicContent) {
+    console.log('Static page detected - no dynamic-content div found');
+    return; // Stop here, let Blogger render the page normally
+  }
+  
+  // Check static pages list as backup
   const path = window.location.pathname;
   const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7'];
   const currentPage = path.split('/').pop().replace('.html', '');
@@ -40,7 +47,6 @@ const NetworksApp = {
   this.loadSidebarData();
   this.bindEvents();
 }
-
   // Detect which page we're on
   detectPageType() {
     const path = window.location.pathname;
