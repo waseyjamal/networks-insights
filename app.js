@@ -25,23 +25,21 @@ const NetworksApp = {
   },
 
   // Initialize application
-  init() {
-    // --- FIX START: Skip static pages completely ---
-    const path = window.location.pathname;
-    const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7', 'affiliate-resources'];
-    const currentPage = path.split('/').pop().replace('.html', '');
-    
-    // Check if current page is in the static list
-    if (staticPages.some(page => currentPage === page)) {
-      console.log('Static page detected - Skipping app initialization to allow Blogger content.');
-      return; // STOP the entire app here
-    }
-    // --- FIX END ---
+ init() {
+  // Skip static pages completely
+  const path = window.location.pathname;
+  const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7'];
+  const currentPage = path.split('/').pop().replace('.html', '');
+  
+  if (staticPages.includes(currentPage)) {
+    console.log('Static page detected - Skipping app initialization');
+    return;
+  }
 
-    this.detectPageType();
-    this.loadSidebarData();
-    this.bindEvents();
-  },
+  this.detectPageType();
+  this.loadSidebarData();
+  this.bindEvents();
+}
 
   // Detect which page we're on
   detectPageType() {
