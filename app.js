@@ -1,7 +1,7 @@
 /**
  * NETWORKS INSIGHTS - CORE APPLICATION
  * Agent 3: JavaScript + HTML Templates
- * Version: 1.1 (Updated: Filters Removed)
+ * Version: 1.2 (Updated: Static Page Bug Fix)
  * Dependencies: Agent 2 (Theme), Agent 1 (API)
  */
 
@@ -26,6 +26,18 @@ const NetworksApp = {
 
   // Initialize application
   init() {
+    // --- FIX START: Skip static pages completely ---
+    const path = window.location.pathname;
+    const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7', 'affiliate-resources'];
+    const currentPage = path.split('/').pop().replace('.html', '');
+    
+    // Check if current page is in the static list
+    if (staticPages.some(page => currentPage === page)) {
+      console.log('Static page detected - Skipping app initialization to allow Blogger content.');
+      return; // STOP the entire app here
+    }
+    // --- FIX END ---
+
     this.detectPageType();
     this.loadSidebarData();
     this.bindEvents();
@@ -35,16 +47,6 @@ const NetworksApp = {
   detectPageType() {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
-    
-    // --- FIX START: Skip static pages ---
-    const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7', 'affiliate-resources'];
-    const currentPage = path.split('/').pop().replace('.html', '');
-    
-    if (staticPages.includes(currentPage)) {
-      console.log('Static page detected, skipping API load.');
-      return; // Stop the script here so Blogger can show your page content
-    }
-    // --- FIX END ---
     
     if (path === '/' || path === '/index.html') {
       this.renderHomepage();
@@ -60,7 +62,6 @@ const NetworksApp = {
     } else if (urlParams.get('network')) {
       this.renderNetworkDetail(urlParams.get('network'));
     } else if (path.match(/\/p\/(\w+)\.html/)) {
-      // Try to load as network detail by slug
       const slug = path.match(/\/p\/(\w+)\.html/)[1];
       this.renderNetworkDetail(slug);
     }
