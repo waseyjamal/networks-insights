@@ -36,6 +36,16 @@ const NetworksApp = {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
     
+    // --- FIX START: Skip static pages ---
+    const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7', 'affiliate-resources'];
+    const currentPage = path.split('/').pop().replace('.html', '');
+    
+    if (staticPages.includes(currentPage)) {
+      console.log('Static page detected, skipping API load.');
+      return; // Stop the script here so Blogger can show your page content
+    }
+    // --- FIX END ---
+    
     if (path === '/' || path === '/index.html') {
       this.renderHomepage();
     } else if (path.includes('/p/affiliate-networks.html')) {
@@ -49,7 +59,11 @@ const NetworksApp = {
       this.renderResourcesPage();
     } else if (urlParams.get('network')) {
       this.renderNetworkDetail(urlParams.get('network'));
-    } 
+    } else if (path.match(/\/p\/(\w+)\.html/)) {
+      // Try to load as network detail by slug
+      const slug = path.match(/\/p\/(\w+)\.html/)[1];
+      this.renderNetworkDetail(slug);
+    }
   },
 
   // ================= API METHODS =================
