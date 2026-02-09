@@ -6,6 +6,8 @@
  * THIS MODULE MUST LOAD FIRST
  */
 
+window.NI_DEBUG = false;
+
 const PageTypeDetector = {
   TYPES: {
     HOME: 'HOME',
@@ -47,7 +49,7 @@ const PageTypeDetector = {
        ========================= */
     if (slug && this.STATIC_SLUGS.includes(slug)) {
       this._cachedType = this.TYPES.STATIC;
-      console.log('[PageTypeDetector] STATIC (explicit slug)');
+      if (window.NI_DEBUG) console.log('[PageTypeDetector] STATIC (explicit slug)');
       return this._cachedType;
     }
 
@@ -56,7 +58,7 @@ const PageTypeDetector = {
        ========================= */
     if (path === '/' || path === '/index.html') {
       this._cachedType = this.TYPES.HOME;
-      console.log('[PageTypeDetector] HOME');
+      if (window.NI_DEBUG) console.log('[PageTypeDetector] HOME');
       return this._cachedType;
     }
 
@@ -65,7 +67,7 @@ const PageTypeDetector = {
        ========================= */
     if (params.get('network')) {
       this._cachedType = this.TYPES.DETAIL;
-      console.log('[PageTypeDetector] DETAIL (network param)');
+      if (window.NI_DEBUG) console.log('[PageTypeDetector] DETAIL (network param)');
       return this._cachedType;
     }
 
@@ -85,7 +87,7 @@ const PageTypeDetector = {
 
     if (slug && listingSlugs.includes(slug)) {
       this._cachedType = this.TYPES.LISTING;
-      console.log('[PageTypeDetector] LISTING (known slug)');
+      if (window.NI_DEBUG) console.log('[PageTypeDetector] LISTING (known slug)');
       return this._cachedType;
     }
 
@@ -94,12 +96,12 @@ const PageTypeDetector = {
        ========================= */
     if (hasDynamicContent || hasNetworksGrid) {
       this._cachedType = this.TYPES.LISTING;
-      console.log('[PageTypeDetector] LISTING (DOM fallback)');
+      if (window.NI_DEBUG) console.log('[PageTypeDetector] LISTING (DOM fallback)');
       return this._cachedType;
     }
 
     this._cachedType = this.TYPES.UNKNOWN;
-    console.log('[PageTypeDetector] UNKNOWN');
+    if (window.NI_DEBUG) console.log('[PageTypeDetector] UNKNOWN');
     return this._cachedType;
   },
 
