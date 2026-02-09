@@ -1,8 +1,8 @@
 /**
  * NETWORKS INSIGHTS - ADVANCED FILTERING & SEARCH
  * Agent 4: Enhanced filtering, URL state, search
- * Version: 1.1 (Fixed: Homepage Conflict)
- * Dependencies: Agent 3 (NetworksApp)
+ * Version: 2.0 (Defensive Architecture)
+ * Dependencies: PageTypeDetector (MUST LOAD FIRST), NetworksApp
  */
 
 const FilterEngine = {
@@ -22,7 +22,7 @@ const FilterEngine = {
     isSearching: false
   },
 
-  // Available filter options (populated from API data)
+  // Available filter options
   options: {
     tracking: [],
     payment: [],
@@ -30,13 +30,64 @@ const FilterEngine = {
     types: ['CPA', 'CPI', 'CPL', 'CPS', 'Advertising', 'Influencer', 'Hybrid']
   },
 
-  // Initialize
+  // Initialization guard
+  _initialized: false,
+
+  /**
+   * Initialize - DEFENSIVE ENTRY POINT
+   */
   init() {
-    this.parseURLParams();
-    this.setupEventListeners();
-    this.populateFilterOptions();
-    this.renderActiveFilters();
-    this.enhanceSearch();
+    // Prevent double initialization
+    if (this._initialized) {
+      console.log('[FilterEngine] Already initialized, skipping');
+      return;
+    }
+
+    // CRITICAL: Check dependencies
+    if (!window.PageTypeDetector) {
+      console.error('[FilterEngine] PageTypeDetector not found! Aborting.');
+      return;
+    }
+
+    // CRITICAL: Only initialize on pages that need filters
+    const pageType = PageTypeDetector.detect();
+    
+    // FILTERS ONLY ALLOWED ON: HOME and LISTING pages
+    if (pageType !== PageTypeDetector.TYPES.HOME && 
+        pageType !== PageTypeDetector.TYPES.LISTING) {
+      console.log(`[FilterEngine] Filters not needed on ${pageType} page - skipping`);
+      return;
+    }
+
+    // Verify filter elements exist
+    const hasFilterElements = document.querySelector('.filter-select') || 
+                              document.getElementById('sortSelect') ||
+                              document.getElementById('globalSearch');
+    
+    if (!hasFilterElements) {
+      console.log('[FilterEngine] No filter elements found - skipping');
+      return;
+    }
+
+    console.log('[FilterEngine] Initializing for page type:', pageType);
+
+    try {
+      this.parseURLParams();
+      this.setupEventListeners();
+      
+      // Only populate filter options if we have filter dropdowns
+      if (document.querySelector('.filter-select')) {
+        this.populateFilterOptions();
+      }
+      
+      this.renderActiveFilters();
+      this.enhanceSearch();
+      
+      this._initialized = true;
+      console.log('[FilterEngine] Initialization complete');
+    } catch (error) {
+      console.error('[FilterEngine] Initialization error:', error);
+    }
   },
 
   // ================= URL STATE MANAGEMENT =================
@@ -134,8 +185,11 @@ const FilterEngine = {
     // Remove filter button clicks
     document.addEventListener('click', (e) => {
       if (e.target.matches('.filter-remove') || e.target.closest('.filter-remove')) {
-        const filterType = e.target.closest('.filter-tag').dataset.filter;
-        this.removeFilter(filterType);
+        const filterTag = e.target.closest('.filter-tag');
+        if (filterTag) {
+          const filterType = filterTag.dataset.filter;
+          this.removeFilter(filterType);
+        }
       }
     });
 
@@ -274,14 +328,14 @@ const FilterEngine = {
     return labels[type] || `${type}: ${value}`;
   },
 
-  // ================= DATA FILTERING (UPDATED) =================
+  // ================= DATA FILTERING =================
 
   async applyFilters() {
-    // FIX: Only apply if we have active filters/search
+    // Guard: Only apply if we have active filters/search
     const hasActiveFilters = Object.keys(this.state.filters).length > 0 || this.state.searchQuery;
     const isHomepage = window.location.pathname === '/' || window.location.pathname === '/index.html';
     
-    // On homepage with no filters, let Agent 3 handle it
+    // On homepage with no filters, let NetworksApp handle it
     if (isHomepage && !hasActiveFilters) {
       return; 
     }
@@ -292,19 +346,37 @@ const FilterEngine = {
     // Show loading
     container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
     
+    // Safety timeout
+    const loadingTimeout = setTimeout(() => {
+      if (container.innerHTML.includes('loading-spinner')) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <h3>Loading timed out</h3>
+            <p>Please try refreshing the page</p>
+          </div>
+        `;
+      }
+    }, 30000);
+    
     // Hide Featured Section if we are filtering
     const featuredSection = document.getElementById('featured-carousel');
     if (featuredSection) {
-        featuredSection.style.display = 'none';
+      featuredSection.style.display = 'none';
     }
     
     let networks = [];
     let pagination = null;
     
     try {
+      // Check if NetworksApp is available
+      if (!window.NetworksApp) {
+        throw new Error('NetworksApp not available');
+      }
+
       // If search query, use search endpoint
       if (this.state.searchQuery) {
-        const result = await DataProvider.fetch('searchNetworks', { 
+        const result = await NetworksApp.fetchAPI('searchNetworks', { 
           q: this.state.searchQuery,
           page: this.state.page,
           limit: NetworksApp.config.ITEMS_PER_PAGE
@@ -324,7 +396,7 @@ const FilterEngine = {
           params[key] = value;
         });
         
-        const result = await DataProvider.fetch('getNetworks', params);
+        const result = await NetworksApp.fetchAPI('getNetworks', params);
         networks = result?.networks || [];
         pagination = result?.pagination;
       }
@@ -335,6 +407,8 @@ const FilterEngine = {
           n.verticals && n.verticals.includes(this.state.filters.vertical)
         );
       }
+      
+      clearTimeout(loadingTimeout);
       
       // Render results
       container.innerHTML = NetworksApp.templates.networkGrid(networks);
@@ -349,8 +423,15 @@ const FilterEngine = {
       this.updateResultCount(networks.length, pagination?.total);
       
     } catch (error) {
-      console.error('Filter error:', error);
-      container.innerHTML = NetworksApp.templates.error('Failed to load networks');
+      clearTimeout(loadingTimeout);
+      console.error('[FilterEngine] Filter error:', error);
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <h3>Failed to load networks</h3>
+          <p>Please try again later</p>
+        </div>
+      `;
     }
   },
 
@@ -446,12 +527,17 @@ const FilterEngine = {
 
   async fetchSearchSuggestions(query) {
     try {
-      const result = await DataProvider.fetch('searchNetworks', { q: query, limit: this.config.maxSuggestions });
+      if (!window.NetworksApp) return;
+      
+      const result = await NetworksApp.fetchAPI('searchNetworks', { 
+        q: query, 
+        limit: this.config.maxSuggestions 
+      });
       const networks = result?.results || [];
       
       this.renderSuggestions(networks, query);
     } catch (error) {
-      console.error('Search suggestions error:', error);
+      console.error('[FilterEngine] Search suggestions error:', error);
     }
   },
 
@@ -531,9 +617,14 @@ const FilterEngine = {
   // ================= FILTER OPTIONS POPULATION =================
 
   async populateFilterOptions() {
-    // Fetch networks to extract unique values
+    // Guard: Only populate if NetworksApp is available
+    if (!window.NetworksApp) {
+      console.log('[FilterEngine] NetworksApp not available - skipping filter population');
+      return;
+    }
+
     try {
-      const result = await DataProvider.fetch('getNetworks', { limit: 100 });
+      const result = await NetworksApp.fetchAPI('getNetworks', { limit: 100 });
       const networks = result?.networks || [];
       
       // Extract unique values
@@ -555,7 +646,7 @@ const FilterEngine = {
       this.updateFilterDropdowns();
       
     } catch (error) {
-      console.error('Failed to populate filter options:', error);
+      console.error('[FilterEngine] Failed to populate filter options:', error);
     }
   },
 
@@ -568,7 +659,7 @@ const FilterEngine = {
         this.options.tracking.map(t => `<option value="${t}">${t}</option>`).join('');
       trackingSelect.value = currentValue;
     }
-    
+
     // Update payment dropdown
     const paymentSelect = document.querySelector('[data-filter="payment"], #paymentFilter');
     if (paymentSelect) {
@@ -580,12 +671,29 @@ const FilterEngine = {
   }
 };
 
-// Initialize when Agent 3 is ready
+// ================= SAFE INITIALIZATION =================
+
+// Only initialize when DOM is ready AND dependencies are available
+function initializeFilterEngine() {
+  if (typeof PageTypeDetector === 'undefined') {
+    console.log('[FilterEngine] PageTypeDetector not loaded. Retrying in 200ms...');
+    setTimeout(initializeFilterEngine, 200);
+    return;
+  }
+  
+  // Wait for NetworksApp to be ready (it loads after PageTypeDetector)
+  if (typeof NetworksApp === 'undefined') {
+    console.log('[FilterEngine] NetworksApp not loaded. Retrying in 200ms...');
+    setTimeout(initializeFilterEngine, 200);
+    return;
+  }
+  
+  FilterEngine.init();
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    // Wait for Agent 3 to initialize
-    setTimeout(() => FilterEngine.init(), 100);
-  });
+  document.addEventListener('DOMContentLoaded', initializeFilterEngine);
 } else {
-  setTimeout(() => FilterEngine.init(), 100);
+  // Small delay to ensure NetworksApp is ready
+  setTimeout(initializeFilterEngine, 150);
 }
