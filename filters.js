@@ -304,7 +304,7 @@ const FilterEngine = {
     try {
       // If search query, use search endpoint
       if (this.state.searchQuery) {
-        const result = await NetworksApp.fetchAPI('searchNetworks', { 
+        const result = await DataProvider.fetch('searchNetworks', { 
           q: this.state.searchQuery,
           page: this.state.page,
           limit: NetworksApp.config.ITEMS_PER_PAGE
@@ -324,7 +324,7 @@ const FilterEngine = {
           params[key] = value;
         });
         
-        const result = await NetworksApp.fetchAPI('getNetworks', params);
+        const result = await DataProvider.fetch('getNetworks', params);
         networks = result?.networks || [];
         pagination = result?.pagination;
       }
@@ -446,7 +446,7 @@ const FilterEngine = {
 
   async fetchSearchSuggestions(query) {
     try {
-      const result = await NetworksApp.fetchAPI('searchNetworks', { q: query, limit: this.config.maxSuggestions });
+      const result = await DataProvider.fetch('searchNetworks', { q: query, limit: this.config.maxSuggestions });
       const networks = result?.results || [];
       
       this.renderSuggestions(networks, query);
@@ -533,7 +533,7 @@ const FilterEngine = {
   async populateFilterOptions() {
     // Fetch networks to extract unique values
     try {
-      const result = await NetworksApp.fetchAPI('getNetworks', { limit: 100 });
+      const result = await DataProvider.fetch('getNetworks', { limit: 100 });
       const networks = result?.networks || [];
       
       // Extract unique values
