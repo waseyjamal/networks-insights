@@ -1,7 +1,7 @@
 /**
  * NETWORKS INSIGHTS - CORE APPLICATION
  * Agent 3: JavaScript + HTML Templates
- * Version: 2.0 (Fixed: Static Page Routing Guard)
+ * Version: 1.2 (Updated: Static Page Bug Fix)
  * Dependencies: Agent 2 (Theme), Agent 1 (API)
  */
 
@@ -9,7 +9,7 @@ const NetworksApp = {
   // Configuration from theme
   config: window.NI_CONFIG || {
     API_BASE_URL: 'https://script.google.com/macros/s/AKfycbw3Wiegd0Ni7jFKM_-9PFfhCBLFsDzueCJCObXqphRK5RUjZ99wjaFZVA2UhTGchwKM/exec',
-    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes
+    CACHE_DURATION: 5 * 60 * 1000,
     ITEMS_PER_PAGE: 20
   },
 
@@ -24,89 +24,51 @@ const NetworksApp = {
     cache: new Map()
   },
 
-  // ================= INITIALIZATION =================
-
-    init() {
-    console.log('[NetworksApp] Initializing...');
-    
-    const dynamicContent = document.getElementById('dynamic-content');
-    if (!dynamicContent) {
-      console.log('[NetworksApp] No dynamic-content div - Static page mode');
-      return;
-    }
-
-    console.log('[NetworksApp] Dynamic page detected - Loading app');
-    this.detectPageType();
-    this.loadSidebarData();
-    this.bindEvents();
-  },
-
+  // Initialize application
+ init() {
+  // Check if we're on a static page (no dynamic-content div)
+  const dynamicContent = document.getElementById('dynamic-content');
+  if (!dynamicContent) {
+    console.log('Static page detected - no dynamic-content div found');
+    return; // Stop here, let Blogger render the page normally
+  }
   
-  // ================= PAGE TYPE DETECTION =================
+  // Check static pages list as backup
+  const path = window.location.pathname;
+  const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7'];
+  const currentPage = path.split('/').pop().replace('.html', '');
+  
+  if (staticPages.includes(currentPage)) {
+    console.log('Static page detected - Skipping app initialization');
+    return;
+  }
 
+  this.detectPageType();
+  this.loadSidebarData();
+  this.bindEvents();
+}
+  // Detect which page we're on
   detectPageType() {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
     
-    console.log('[NetworksApp] Detecting page type for:', path);
-
-    // Priority 1: Homepage
     if (path === '/' || path === '/index.html') {
-      console.log('[NetworksApp] Page type: Homepage');
       this.renderHomepage();
-      return;
-    }
-
-    // Priority 2: Search results
-    if (urlParams.get('q')) {
-      console.log('[NetworksApp] Page type: Search');
-      this.renderSearchResults(urlParams.get('q'));
-      return;
-    }
-
-    // Priority 3: Network detail via query param ?network=slug
-    if (urlParams.get('network')) {
-      const networkSlug = urlParams.get('network');
-      console.log('[NetworksApp] Page type: Network Detail (query param):', networkSlug);
-      this.renderNetworkDetail(networkSlug);
-      return;
-    }
-
-    // Priority 4: Category pages - MUST check before network detail
-    // Pattern: /p/affiliate-networks.html or /p/dating-networks.html
-    const categoryMatch = path.match(/\/p\/([\w-]+)-networks\.html$/);
-    if (categoryMatch) {
-      const vertical = categoryMatch[1];
-      console.log('[NetworksApp] Page type: Category/Vertical:', vertical);
+    } else if (path.includes('/p/affiliate-networks.html')) {
+      this.renderCategoryPage('all');
+    } else if (path.match(/\/p\/(\w+)-networks\.html/)) {
+      const vertical = path.match(/\/p\/(\w+)-networks\.html/)[1];
       this.renderCategoryPage(vertical);
-      return;
-    }
-
-    // Priority 5: Reviews page
-    if (path.includes('/p/reviews.html')) {
-      console.log('[NetworksApp] Page type: Reviews');
+    } else if (path.includes('/p/reviews.html')) {
       this.renderReviewsPage();
-      return;
-    }
-
-    // Priority 6: Resources page
-    if (path.includes('/p/resources')) {
-      console.log('[NetworksApp] Page type: Resources');
+    } else if (path.includes('/p/resources.html')) {
       this.renderResourcesPage();
-      return;
-    }
-
-    // Priority 7: Network detail via /p/{slug}.html
-    const networkMatch = path.match(/\/p\/([\w-]+)\.html$/);
-    if (networkMatch) {
-      const slug = networkMatch[1];
-      console.log('[NetworksApp] Page type: Network Detail (URL path):', slug);
+    } else if (urlParams.get('network')) {
+      this.renderNetworkDetail(urlParams.get('network'));
+    } else if (path.match(/\/p\/(\w+)\.html/)) {
+      const slug = path.match(/\/p\/(\w+)\.html/)[1];
       this.renderNetworkDetail(slug);
-      return;
     }
-
-    // Default: Unknown page type, don't interfere
-    console.log('[NetworksApp] Unknown page type - Letting Blogger handle it');
   },
 
   // ================= API METHODS =================
@@ -116,7 +78,7 @@ const NetworksApp = {
     const cached = this.getCache(cacheKey);
     
     if (cached) {
-      console.log('[NetworksApp] Cache hit:', cacheKey);
+      console.log('Cache hit:', cacheKey);
       return cached;
     }
 
@@ -124,7 +86,6 @@ const NetworksApp = {
     const url = `${this.config.API_BASE_URL}?${queryString}`;
     
     try {
-      console.log('[NetworksApp] API call:', action, params);
       const response = await fetch(url);
       const data = await response.json();
       
@@ -135,7 +96,7 @@ const NetworksApp = {
         throw new Error(data.error?.message || 'API Error');
       }
     } catch (error) {
-      console.error('[NetworksApp] API Error:', error);
+      console.error('API Error:', error);
       this.showError('Failed to load data. Please try again.');
       return null;
     }
@@ -154,7 +115,7 @@ const NetworksApp = {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('[NetworksApp] POST Error:', error);
+      console.error('POST Error:', error);
       return { success: false, error: { message: 'Submission failed' } };
     }
   },
@@ -184,7 +145,6 @@ const NetworksApp = {
   // Homepage renderer
   async renderHomepage() {
     const container = document.getElementById('dynamic-content');
-    if (!container) return;
     container.innerHTML = this.templates.loading();
 
     try {
@@ -193,6 +153,7 @@ const NetworksApp = {
         this.fetchAPI('getCategories')
       ]);
 
+      // MODIFIED: Removed this.templates.filtersBar()
       const html = `
         ${this.templates.featuredSection(networksData?.networks || [])}
         <div id="networks-grid">
@@ -212,7 +173,6 @@ const NetworksApp = {
   // Category/Vertical page renderer
   async renderCategoryPage(vertical) {
     const container = document.getElementById('dynamic-content');
-    if (!container) return;
     container.innerHTML = this.templates.loading();
 
     const params = {
@@ -231,6 +191,7 @@ const NetworksApp = {
       const title = vertical === 'all' ? 'All Networks' : 
         `${vertical.charAt(0).toUpperCase() + vertical.slice(1)} Networks`;
       
+      // MODIFIED: Removed this.templates.filtersBar()
       const html = `
         <div class="page-header">
           <h1 class="page-title">${title}</h1>
@@ -253,7 +214,6 @@ const NetworksApp = {
   // Network detail page renderer
   async renderNetworkDetail(slug) {
     const container = document.getElementById('dynamic-content');
-    if (!container) return;
     container.innerHTML = this.templates.loading();
 
     try {
@@ -280,36 +240,9 @@ const NetworksApp = {
     }
   },
 
-  // Search results renderer - THIS WAS MISSING IN YOUR ORIGINAL!
-  async renderSearchResults(query) {
-    const container = document.getElementById('dynamic-content');
-    if (!container) return;
-    container.innerHTML = this.templates.loading();
-
-    try {
-      const data = await this.fetchAPI('searchNetworks', { q: query });
-      
-      const html = `
-        <div class="page-header">
-          <h1 class="page-title">Search Results</h1>
-          <p class="page-subtitle">${data?.count || 0} results for "${query}"</p>
-        </div>
-        <div id="networks-grid">
-          ${this.templates.networkGrid(data?.results || [])}
-        </div>
-      `;
-      
-      container.innerHTML = html;
-      
-    } catch (error) {
-      container.innerHTML = this.templates.error('Search failed');
-    }
-  },
-
   // Reviews page renderer
   async renderReviewsPage() {
     const container = document.getElementById('dynamic-content');
-    if (!container) return;
     container.innerHTML = this.templates.loading();
 
     // Fetch recent reviews from all networks (simplified - in production, add dedicated endpoint)
@@ -321,11 +254,7 @@ const NetworksApp = {
     for (const network of networks.slice(0, 10)) {
       const data = await this.fetchAPI('getNetwork', { slug: network.slug });
       if (data?.reviews) {
-        allReviews.push(...data.reviews.map(r => ({ 
-          ...r, 
-          networkName: network.name, 
-          networkSlug: network.slug 
-        })));
+        allReviews.push(...data.reviews.map(r => ({ ...r, networkName: network.name, networkSlug: network.slug })));
       }
     }
     
@@ -348,37 +277,28 @@ const NetworksApp = {
   // Resources page renderer
   renderResourcesPage() {
     const container = document.getElementById('dynamic-content');
-    if (!container) return;
     container.innerHTML = this.templates.resourcesPage();
   },
 
   // Load sidebar widgets data
   async loadSidebarData() {
-    // 🛡️ Skip if static page
-    
+    // Network of the Month
+    const notmData = await this.fetchAPI('getNetworks', { limit: 1, network_of_month: 'true' });
+    if (notmData?.networks?.[0]) {
+      document.getElementById('notmContent').innerHTML = this.templates.notmWidget(notmData.networks[0]);
+    }
 
-    try {
-      // Network of the Month
-      const notmData = await this.fetchAPI('getNetworks', { limit: 1, network_of_month: 'true' });
-      const notmContainer = document.getElementById('notmContent');
-      if (notmContainer && notmData?.networks?.[0]) {
-        notmContainer.innerHTML = this.templates.notmWidget(notmData.networks[0]);
-      }
+    // Featured sidebar
+    const featuredData = await this.fetchAPI('getNetworks', { limit: 3, featured: 'true' });
+    if (featuredData?.networks) {
+      document.getElementById('featuredSidebarList').innerHTML = 
+        featuredData.networks.map(n => this.templates.sidebarNetworkItem(n)).join('');
+    }
 
-      // Featured sidebar
-      const featuredData = await this.fetchAPI('getNetworks', { limit: 3, featured: 'true' });
-      const featuredContainer = document.getElementById('featuredSidebarList');
-      if (featuredContainer && featuredData?.networks) {
-        featuredContainer.innerHTML = featuredData.networks.map(n => this.templates.sidebarNetworkItem(n)).join('');
-      }
-
-      // Update category counts
-      const categories = await this.fetchAPI('getCategories');
-      if (categories?.categories) {
-        this.updateCategoryDropdown(categories.categories);
-      }
-    } catch (error) {
-      console.error('[NetworksApp] Sidebar load error:', error);
+    // Update category counts
+    const categories = await this.fetchAPI('getCategories');
+    if (categories?.categories) {
+      this.updateCategoryDropdown(categories.categories);
     }
   },
 
@@ -474,6 +394,8 @@ const NetworksApp = {
   // ================= HTML TEMPLATES =================
 
   templates: {
+    // MODIFIED: filtersBar() function DELETED
+
     loading() {
       return `
         <div class="loading-spinner">
