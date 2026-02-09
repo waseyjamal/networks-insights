@@ -1,7 +1,7 @@
 /**
  * NETWORKS INSIGHTS - SEO & ANALYTICS MODULE
  * Agent 5: Complete SEO, Schema, Tracking
- * Version: 2.0 (Defensive Architecture)
+ * Version: 2.1 (Fixed Syntax Errors)
  * Dependencies: PageTypeDetector (MUST LOAD FIRST)
  */
 
@@ -55,9 +55,10 @@ const SEOModule = {
   detectPageAndUpdateSEO() {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
-    var match = path.match(/\/p\/([^.]+)\.html/);
-const slug = match ? match[1] : null;
-
+    
+    // FIX: Use const instead of var
+    const match = path.match(/\/p\/([^.]+)\.html/);
+    const slug = match ? match[1] : null;
 
     // Get page type from detector if available
     const pageType = window.PageTypeDetector ? PageTypeDetector.detect() : null;
@@ -317,11 +318,11 @@ const slug = match ? match[1] : null;
 
       const network = data.network;
       const ratingValue = network.ratings?.overall || '0.0';
-const shortDesc = network.short_desc || network.description?.substring(0, 160) || '';
+      const shortDesc = network.short_desc || network.description?.substring(0, 160) || '';
 
-const title = network.name + ' Reviews | ' + ratingValue + ' Stars | ' + this.config.siteName;
-const description = shortDesc + ' Read ' + network.review_count + ' real reviews, view payment proofs, and compare ratings.';
-
+      // FIX: Use template literals consistently
+      const title = `${network.name} Reviews | ${ratingValue} Stars | ${this.config.siteName}`;
+      const description = `${shortDesc} Read ${network.review_count} real reviews, view payment proofs, and compare ratings.`;
       
       this.updateMetaTags({
         title,
@@ -346,11 +347,11 @@ const description = shortDesc + ' Read ' + network.review_count + ' real reviews
           bestRating: 5,
           worstRating: 1
         } : undefined,
+        // FIX: Use optional chaining
         sameAs: [
-          network.social_links && network.social_links.facebook,
-network.social_links && network.social_links.twitter,
-network.social_links && network.social_links.linkedin
-
+          network.social_links?.facebook,
+          network.social_links?.twitter,
+          network.social_links?.linkedin
         ].filter(Boolean)
       });
 
@@ -365,8 +366,8 @@ network.social_links && network.social_links.linkedin
           datePublished: review.date_posted,
           reviewRating: {
             '@type': 'Rating',
-            ratingValue: review.ratings && review.ratings.overall
-
+            // FIX: Use optional chaining
+            ratingValue: review.ratings?.overall
           },
           reviewBody: review.comment
         }));
