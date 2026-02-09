@@ -26,22 +26,22 @@ const NetworksApp = {
 
   // ================= INITIALIZATION =================
 
-  init() {
-  console.log('[NetworksApp] Initializing...');
-  
-  // Check if dynamic-content div exists
-  const dynamicContent = document.getElementById('dynamic-content');
-  if (!dynamicContent) {
-    console.log('[NetworksApp] No dynamic-content div - Static page mode');
-    return;
-  }
+    init() {
+    console.log('[NetworksApp] Initializing...');
+    
+    const dynamicContent = document.getElementById('dynamic-content');
+    if (!dynamicContent) {
+      console.log('[NetworksApp] No dynamic-content div - Static page mode');
+      return;
+    }
 
-  // Proceed with dynamic rendering
-  console.log('[NetworksApp] Dynamic page detected - Loading app');
-  this.detectPageType();
-  this.loadSidebarData();
-  this.bindEvents();
-}
+    console.log('[NetworksApp] Dynamic page detected - Loading app');
+    this.detectPageType();
+    this.loadSidebarData();
+    this.bindEvents();
+  },
+
+  
   // ================= PAGE TYPE DETECTION =================
 
   detectPageType() {
