@@ -1,7 +1,8 @@
 /**
  * NETWORKS INSIGHTS - AD MANAGEMENT MODULE
  * Agent 5: Ad rotation, targeting, fallback
- * Version: 1.0
+ * Version: 2.0 (Defensive Architecture)
+ * Dependencies: PageTypeDetector (MUST LOAD FIRST)
  */
 
 const AdManager = {
@@ -70,19 +71,52 @@ const AdManager = {
     }
   },
 
+  // Initialization guard
+  _initialized: false,
+
+  /**
+   * Initialize - DEFENSIVE ENTRY POINT
+   */
   init() {
-    this.detectAdType();
-    this.renderAds();
+    // Prevent double initialization
+    if (this._initialized) {
+      console.log('[AdManager] Already initialized, skipping');
+      return;
+    }
+
+    // CRITICAL: Check dependencies
+    if (!window.PageTypeDetector) {
+      console.error('[AdManager] PageTypeDetector not found! Aborting.');
+      return;
+    }
+
+    // CRITICAL: Ads NOT allowed on static pages
+    if (!PageTypeDetector.isFeatureAllowed('ads')) {
+      console.log('[AdManager] Ads not allowed on this page type - skipping');
+      return;
+    }
+
+    console.log('[AdManager] Initializing...');
+
+    try {
+      this.detectAdType();
+      this.renderAds();
+      this._initialized = true;
+      console.log('[AdManager] Initialization complete');
+    } catch (error) {
+      console.error('[AdManager] Initialization error:', error);
+    }
   },
 
   detectAdType() {
     this.useAdSense = typeof adsbygoogle !== 'undefined' && 
                       this.config.adsense.clientId !== 'ca-pub-0000000000000000';
     
-    console.log('Ad Type:', this.useAdSense ? 'AdSense' : 'Fallback Affiliate');
+    console.log('[AdManager] Ad Type:', this.useAdSense ? 'AdSense' : 'Fallback Affiliate');
   },
 
   renderAds() {
+    // Top Banner - with element check
     const topBanner = document.getElementById('adTopBanner');
     if (topBanner) {
       if (this.useAdSense) {
@@ -90,8 +124,11 @@ const AdManager = {
       } else {
         this.renderFallback(topBanner, 'topBanner');
       }
+    } else {
+      console.log('[AdManager] adTopBanner element not found - skipping');
     }
 
+    // Sidebar - with element check
     const sidebar = document.getElementById('adSidebar');
     if (sidebar) {
       if (this.useAdSense) {
@@ -99,48 +136,93 @@ const AdManager = {
       } else {
         this.renderFallback(sidebar, 'sidebar');
       }
+    } else {
+      console.log('[AdManager] adSidebar element not found - skipping');
+    }
+
+    // Inline ads - with element check
+    const inlineAds = document.querySelectorAll('.ad-inline');
+    if (inlineAds.length > 0) {
+      inlineAds.forEach((container, index) => {
+        if (this.useAdSense) {
+          this.renderAdSense(container, 'inline', '468x60');
+        } else {
+          // Rotate fallback for inline
+          this.renderFallback(container, 'sidebar'); // Use sidebar size for inline
+        }
+      });
     }
   },
 
   renderAdSense(container, slotKey, size) {
+    // Guard: Check if container exists and is empty
+    if (!container) return;
+    if (container.innerHTML.trim() !== '') {
+      console.log(`[AdManager] Container ${slotKey} not empty - skipping AdSense render`);
+      return;
+    }
+
     const [width, height] = size.split('x');
-    container.innerHTML = `
-      <ins class="adsbygoogle"
-           style="display:inline-block;width:${width}px;height:${height}px"
-           data-ad-client="${this.config.adsense.clientId}"
-           data-ad-slot="${this.config.adsense.slots[slotKey]}"></ins>
-    `;
-    (adsbygoogle = window.adsbygoogle || []).push({});
+    
+    try {
+      container.innerHTML = `
+        <ins class="adsbygoogle"
+             style="display:inline-block;width:${width}px;height:${height}px"
+             data-ad-client="${this.config.adsense.clientId}"
+             data-ad-slot="${this.config.adsense.slots[slotKey]}"></ins>
+      `;
+      
+      // Push to adsbygoogle if available
+      if (window.adsbygoogle) {
+        (adsbygoogle = window.adsbygoogle || []).push({});
+      }
+    } catch (error) {
+      console.error('[AdManager] AdSense render error:', error);
+      // Fallback to affiliate ad on error
+      this.renderFallback(container, slotKey);
+    }
   },
 
   renderFallback(container, position) {
+    // Guard: Check if container exists
+    if (!container) return;
+
     const offers = this.config.fallback[position];
     if (!offers || offers.length === 0) {
       container.innerHTML = '<!-- No ads configured -->';
       return;
     }
 
-    const offer = this.selectByWeight(offers);
-    this.trackAdImpression(offer.name, position);
+    try {
+      const offer = this.selectByWeight(offers);
+      this.trackAdImpression(offer.name, position);
 
-    container.innerHTML = `
-      <a href="${offer.link}" 
-         target="_blank" 
-         rel="noopener sponsored"
-         class="ad-link-${position}"
-         data-ad-name="${offer.name}"
-         data-ad-position="${position}">
-        <img src="${offer.image}" 
-             alt="${offer.name} - Recommended Affiliate Network"
-             style="max-width:100%; height:auto; border-radius:8px; display:block;"
-             loading="lazy"
-             onerror="this.src='https://via.placeholder.com/${position === 'topBanner' ? '728x90' : '300x250'}?text=${offer.name}'">
-      </a>
-    `;
+      container.innerHTML = `
+        <a href="${offer.link}" 
+           target="_blank" 
+           rel="noopener sponsored"
+           class="ad-link-${position}"
+           data-ad-name="${offer.name}"
+           data-ad-position="${position}">
+          <img src="${offer.image}" 
+               alt="${offer.name} - Recommended Affiliate Network"
+               style="max-width:100%; height:auto; border-radius:8px; display:block;"
+               loading="lazy"
+               onerror="this.src='https://via.placeholder.com/${position === 'topBanner' ? '728x90' : '300x250'}?text=${offer.name}'">
+        </a>
+      `;
 
-    container.querySelector('a').addEventListener('click', () => {
-      this.trackAdClick(offer.name, position);
-    });
+      // Add click tracking
+      const link = container.querySelector('a');
+      if (link) {
+        link.addEventListener('click', () => {
+          this.trackAdClick(offer.name, position);
+        });
+      }
+    } catch (error) {
+      console.error('[AdManager] Fallback render error:', error);
+      container.innerHTML = '<!-- Ad render error -->';
+    }
   },
 
   selectByWeight(offers) {
@@ -176,8 +258,20 @@ const AdManager = {
   }
 };
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => AdManager.init());
-} else {
+// ================= SAFE INITIALIZATION =================
+
+// Only initialize when DOM is ready AND PageTypeDetector is available
+function initializeAdManager() {
+  if (typeof PageTypeDetector === 'undefined') {
+    console.log('[AdManager] PageTypeDetector not loaded. Retrying in 100ms...');
+    setTimeout(initializeAdManager, 100);
+    return;
+  }
   AdManager.init();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeAdManager);
+} else {
+  initializeAdManager();
 }
