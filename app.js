@@ -355,10 +355,7 @@ const NetworksApp = {
   // Load sidebar widgets data
   async loadSidebarData() {
     // 🛡️ Skip if static page
-    if (document.querySelector('[data-static-page]')) {
-      console.log('[NetworksApp] Static page - Skipping sidebar load');
-      return;
-    }
+    
 
     try {
       // Network of the Month
