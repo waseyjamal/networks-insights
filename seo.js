@@ -55,7 +55,9 @@ const SEOModule = {
   detectPageAndUpdateSEO() {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
-    const slug = path.match(/\/p\/([^.]+)\.html/)?.[1];
+    var match = path.match(/\/p\/([^.]+)\.html/);
+const slug = match ? match[1] : null;
+
 
     // Get page type from detector if available
     const pageType = window.PageTypeDetector ? PageTypeDetector.detect() : null;
@@ -314,8 +316,12 @@ const SEOModule = {
       }
 
       const network = data.network;
-      const title = `${network.name} Reviews | ${network.ratings?.overall || '0.0'} Stars | ${this.config.siteName}`;
-      const description = `${network.short_desc || network.description?.substring(0, 160)} Read ${network.review_count} real reviews, view payment proofs, and compare ratings.`;
+      const ratingValue = network.ratings?.overall || '0.0';
+const shortDesc = network.short_desc || network.description?.substring(0, 160) || '';
+
+const title = network.name + ' Reviews | ' + ratingValue + ' Stars | ' + this.config.siteName;
+const description = shortDesc + ' Read ' + network.review_count + ' real reviews, view payment proofs, and compare ratings.';
+
       
       this.updateMetaTags({
         title,
@@ -341,9 +347,10 @@ const SEOModule = {
           worstRating: 1
         } : undefined,
         sameAs: [
-          network.social_links?.facebook,
-          network.social_links?.twitter,
-          network.social_links?.linkedin
+          network.social_links && network.social_links.facebook,
+network.social_links && network.social_links.twitter,
+network.social_links && network.social_links.linkedin
+
         ].filter(Boolean)
       });
 
@@ -358,7 +365,8 @@ const SEOModule = {
           datePublished: review.date_posted,
           reviewRating: {
             '@type': 'Rating',
-            ratingValue: review.ratings?.overall
+            ratingValue: review.ratings && review.ratings.overall
+
           },
           reviewBody: review.comment
         }));
@@ -523,7 +531,7 @@ const SEOModule = {
         if (link.classList.contains('btn-join') || link.href.includes('ref=') || link.href.includes('utm_')) {
           this.trackEvent('affiliate_click', {
             network_name: link.closest('.network-card')?.dataset?.slug || 'unknown',
-            destination: link.href
+            destination: link.href  
           });
         }
 
