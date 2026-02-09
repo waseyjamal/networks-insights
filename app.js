@@ -1,8 +1,8 @@
 /**
  * NETWORKS INSIGHTS - CORE APPLICATION
  * Agent 3: JavaScript + HTML Templates
- * Version: 1.2 (Updated: Static Page Bug Fix)
- * Dependencies: Agent 2 (Theme), Agent 1 (API)
+ * Version: 2.0 (Defensive Architecture)
+ * Dependencies: PageTypeDetector (MUST LOAD FIRST)
  */
 
 const NetworksApp = {
@@ -24,61 +24,118 @@ const NetworksApp = {
     cache: new Map()
   },
 
-  // Initialize application
- init() {
-  // Check if we're on a static page (no dynamic-content div)
-  const dynamicContent = document.getElementById('dynamic-content');
-  if (!dynamicContent) {
-    console.log('Static page detected - no dynamic-content div found');
-    return; // Stop here, let Blogger render the page normally
-  }
-  
-  // Check static pages list as backup
-  const path = window.location.pathname;
-  const staticPages = ['about', 'contact-us_7', 'resources_33', 'privacy-policy_56', 'terms-of-service_7'];
-  const currentPage = path.split('/').pop().replace('.html', '');
-  
-  if (staticPages.includes(currentPage)) {
-    console.log('Static page detected - Skipping app initialization');
-    return;
-  }
+  // Initialization guard
+  _initialized: false,
 
-  this.detectPageType();
-  this.loadSidebarData();
-  this.bindEvents();
-}
-  // Detect which page we're on
+  /**
+   * Initialize application - DEFENSIVE ENTRY POINT
+   */
+  init() {
+    // Prevent double initialization
+    if (this._initialized) {
+      console.log('[NetworksApp] Already initialized, skipping');
+      return;
+    }
+
+    // CRITICAL: Check page type FIRST
+    if (!window.PageTypeDetector) {
+      console.error('[NetworksApp] PageTypeDetector not found! Aborting.');
+      return;
+    }
+
+    const pageType = PageTypeDetector.detect();
+    const config = PageTypeDetector.getConfig();
+
+    // STATIC PAGES: Exit immediately - no dynamic rendering
+    if (pageType === PageTypeDetector.TYPES.STATIC) {
+      console.log('[NetworksApp] Static page detected - skipping all dynamic initialization');
+      return;
+    }
+
+    // Verify dynamic-content exists before proceeding
+    const dynamicContent = document.getElementById('dynamic-content');
+    if (!dynamicContent) {
+      console.log('[NetworksApp] No dynamic-content container found - skipping');
+      return;
+    }
+
+    console.log(`[NetworksApp] Initializing for page type: ${pageType}`);
+
+    // Safe initialization sequence
+    try {
+      this.detectPageType();
+      
+      // Only load sidebar data if sidebar widgets are allowed
+      if (config.features.sidebarWidgets) {
+        this.loadSidebarData();
+      }
+      
+      this.bindEvents();
+      this._initialized = true;
+      console.log('[NetworksApp] Initialization complete');
+    } catch (error) {
+      console.error('[NetworksApp] Initialization error:', error);
+      this.showError('Failed to initialize application');
+    }
+  },
+
+  /**
+   * Detect which page we're on and render accordingly
+   */
   detectPageType() {
     const path = window.location.pathname;
     const urlParams = new URLSearchParams(window.location.search);
-    
-    if (path === '/' || path === '/index.html') {
-      this.renderHomepage();
-    } else if (path.includes('/p/affiliate-networks.html')) {
-      this.renderCategoryPage('all');
-    } else if (path.match(/\/p\/(\w+)-networks\.html/)) {
-      const vertical = path.match(/\/p\/(\w+)-networks\.html/)[1];
-      this.renderCategoryPage(vertical);
-    } else if (path.includes('/p/reviews.html')) {
-      this.renderReviewsPage();
-    } else if (path.includes('/p/resources.html')) {
-      this.renderResourcesPage();
-    } else if (urlParams.get('network')) {
-      this.renderNetworkDetail(urlParams.get('network'));
-    } else if (path.match(/\/p\/(\w+)\.html/)) {
-      const slug = path.match(/\/p\/(\w+)\.html/)[1];
-      this.renderNetworkDetail(slug);
+    const pageType = PageTypeDetector.detect();
+
+    switch (pageType) {
+      case PageTypeDetector.TYPES.HOME:
+        this.renderHomepage();
+        break;
+        
+      case PageTypeDetector.TYPES.LISTING:
+        // Determine which listing to render
+        if (path.includes('/p/affiliate-networks.html')) {
+          this.renderCategoryPage('all');
+        } else if (path.match(/\/p\/(\w+)-networks\.html/)) {
+          const vertical = path.match(/\/p\/(\w+)-networks\.html/)[1];
+          this.renderCategoryPage(vertical);
+        } else if (path.includes('/p/reviews.html')) {
+          this.renderReviewsPage();
+        } else if (path.includes('/p/resources.html')) {
+          this.renderResourcesPage();
+        } else {
+          // Default listing
+          this.renderCategoryPage('all');
+        }
+        break;
+        
+      case PageTypeDetector.TYPES.DETAIL:
+        const slug = urlParams.get('network') || 
+                     path.match(/\/p\/([^.]+)\.html$/)?.[1];
+        if (slug) {
+          this.renderNetworkDetail(slug);
+        }
+        break;
+        
+      default:
+        console.log('[NetworksApp] Unknown page type, no rendering needed');
     }
   },
 
   // ================= API METHODS =================
 
   async fetchAPI(action, params = {}) {
+    // Guard: No API calls on static pages
+    if (!PageTypeDetector.isFeatureAllowed('apiCalls')) {
+      console.log('[NetworksApp] API calls not allowed on this page');
+      return null;
+    }
+
     const cacheKey = `${action}_${JSON.stringify(params)}`;
     const cached = this.getCache(cacheKey);
     
     if (cached) {
-      console.log('Cache hit:', cacheKey);
+      console.log('[NetworksApp] Cache hit:', cacheKey);
       return cached;
     }
 
@@ -96,13 +153,19 @@ const NetworksApp = {
         throw new Error(data.error?.message || 'API Error');
       }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('[NetworksApp] API Error:', error);
       this.showError('Failed to load data. Please try again.');
       return null;
     }
   },
 
   async postAPI(action, data) {
+    // Guard: No API calls on static pages
+    if (!PageTypeDetector.isFeatureAllowed('apiCalls')) {
+      console.log('[NetworksApp] API calls not allowed on this page');
+      return { success: false, error: { message: 'Not allowed' } };
+    }
+
     const formData = new FormData();
     formData.append('action', action);
     Object.keys(data).forEach(key => formData.append(key, data[key]));
@@ -115,7 +178,7 @@ const NetworksApp = {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('POST Error:', error);
+      console.error('[NetworksApp] POST Error:', error);
       return { success: false, error: { message: 'Submission failed' } };
     }
   },
@@ -142,10 +205,18 @@ const NetworksApp = {
 
   // ================= RENDER METHODS =================
 
-  // Homepage renderer
   async renderHomepage() {
     const container = document.getElementById('dynamic-content');
+    if (!container) return;
+
+    // Show loading state with timeout safety
     container.innerHTML = this.templates.loading();
+    
+    const loadingTimeout = setTimeout(() => {
+      if (container.innerHTML.includes('loading-spinner')) {
+        container.innerHTML = this.templates.error('Loading timed out. Please refresh.');
+      }
+    }, 30000); // 30 second timeout
 
     try {
       const [networksData, categories] = await Promise.all([
@@ -153,7 +224,8 @@ const NetworksApp = {
         this.fetchAPI('getCategories')
       ]);
 
-      // MODIFIED: Removed this.templates.filtersBar()
+      clearTimeout(loadingTimeout);
+
       const html = `
         ${this.templates.featuredSection(networksData?.networks || [])}
         <div id="networks-grid">
@@ -166,14 +238,24 @@ const NetworksApp = {
       this.state.networks = networksData?.networks || [];
       
     } catch (error) {
+      clearTimeout(loadingTimeout);
+      console.error('[NetworksApp] Homepage render error:', error);
       container.innerHTML = this.templates.error('Failed to load networks');
     }
   },
 
-  // Category/Vertical page renderer
   async renderCategoryPage(vertical) {
     const container = document.getElementById('dynamic-content');
+    if (!container) return;
+
     container.innerHTML = this.templates.loading();
+
+    // Safety timeout
+    const loadingTimeout = setTimeout(() => {
+      if (container.innerHTML.includes('loading-spinner')) {
+        container.innerHTML = this.templates.error('Loading timed out. Please refresh.');
+      }
+    }, 30000);
 
     const params = {
       page: this.state.currentPage,
@@ -187,11 +269,11 @@ const NetworksApp = {
 
     try {
       const data = await this.fetchAPI('getNetworksByVertical', params);
+      clearTimeout(loadingTimeout);
       
       const title = vertical === 'all' ? 'All Networks' : 
         `${vertical.charAt(0).toUpperCase() + vertical.slice(1)} Networks`;
       
-      // MODIFIED: Removed this.templates.filtersBar()
       const html = `
         <div class="page-header">
           <h1 class="page-title">${title}</h1>
@@ -207,17 +289,28 @@ const NetworksApp = {
       this.state.networks = data?.networks || [];
       
     } catch (error) {
+      clearTimeout(loadingTimeout);
+      console.error('[NetworksApp] Category render error:', error);
       container.innerHTML = this.templates.error('Failed to load networks');
     }
   },
 
-  // Network detail page renderer
   async renderNetworkDetail(slug) {
     const container = document.getElementById('dynamic-content');
+    if (!container) return;
+
     container.innerHTML = this.templates.loading();
+
+    // Safety timeout
+    const loadingTimeout = setTimeout(() => {
+      if (container.innerHTML.includes('loading-spinner')) {
+        container.innerHTML = this.templates.error('Loading timed out. Please refresh.');
+      }
+    }, 30000);
 
     try {
       const data = await this.fetchAPI('getNetwork', { slug });
+      clearTimeout(loadingTimeout);
       
       if (!data || !data.network) {
         container.innerHTML = this.templates.error('Network not found');
@@ -236,69 +329,110 @@ const NetworksApp = {
       document.title = `${data.network.name} Reviews | ${data.network.ratings.overall} Stars | Networks Insights`;
       
     } catch (error) {
+      clearTimeout(loadingTimeout);
+      console.error('[NetworksApp] Detail render error:', error);
       container.innerHTML = this.templates.error('Failed to load network details');
     }
   },
 
-  // Reviews page renderer
   async renderReviewsPage() {
     const container = document.getElementById('dynamic-content');
+    if (!container) return;
+
     container.innerHTML = this.templates.loading();
 
-    // Fetch recent reviews from all networks (simplified - in production, add dedicated endpoint)
-    const networksData = await this.fetchAPI('getNetworks', { limit: 50, sort: 'newest' });
-    const networks = networksData?.networks || [];
-    
-    // Collect reviews from top networks
-    const allReviews = [];
-    for (const network of networks.slice(0, 10)) {
-      const data = await this.fetchAPI('getNetwork', { slug: network.slug });
-      if (data?.reviews) {
-        allReviews.push(...data.reviews.map(r => ({ ...r, networkName: network.name, networkSlug: network.slug })));
+    const loadingTimeout = setTimeout(() => {
+      if (container.innerHTML.includes('loading-spinner')) {
+        container.innerHTML = this.templates.error('Loading timed out. Please refresh.');
       }
+    }, 30000);
+
+    try {
+      const networksData = await this.fetchAPI('getNetworks', { limit: 50, sort: 'newest' });
+      const networks = networksData?.networks || [];
+      
+      // Collect reviews from top networks
+      const allReviews = [];
+      for (const network of networks.slice(0, 5)) {
+        const data = await this.fetchAPI('getNetwork', { slug: network.slug });
+        if (data?.reviews) {
+          allReviews.push(...data.reviews.map(r => ({ 
+            ...r, 
+            networkName: network.name, 
+            networkSlug: network.slug 
+          })));
+        }
+      }
+      
+      clearTimeout(loadingTimeout);
+      
+      // Sort by date
+      allReviews.sort((a, b) => new Date(b.date_posted) - new Date(a.date_posted));
+      
+      const html = `
+        <div class="page-header">
+          <h1 class="page-title">Recent Reviews</h1>
+          <p class="page-subtitle">Real feedback from affiliate marketers</p>
+        </div>
+        <div class="reviews-feed">
+          ${allReviews.slice(0, 20).map(review => this.templates.reviewCard(review, true)).join('')}
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    } catch (error) {
+      clearTimeout(loadingTimeout);
+      console.error('[NetworksApp] Reviews page error:', error);
+      container.innerHTML = this.templates.error('Failed to load reviews');
     }
-    
-    // Sort by date
-    allReviews.sort((a, b) => new Date(b.date_posted) - new Date(a.date_posted));
-    
-    const html = `
-      <div class="page-header">
-        <h1 class="page-title">Recent Reviews</h1>
-        <p class="page-subtitle">Real feedback from affiliate marketers</p>
-      </div>
-      <div class="reviews-feed">
-        ${allReviews.slice(0, 20).map(review => this.templates.reviewCard(review, true)).join('')}
-      </div>
-    `;
-    
-    container.innerHTML = html;
   },
 
-  // Resources page renderer
   renderResourcesPage() {
     const container = document.getElementById('dynamic-content');
+    if (!container) return;
+    
     container.innerHTML = this.templates.resourcesPage();
   },
 
-  // Load sidebar widgets data
+  // ================= SIDEBAR METHODS =================
+
   async loadSidebarData() {
-    // Network of the Month
-    const notmData = await this.fetchAPI('getNetworks', { limit: 1, network_of_month: 'true' });
-    if (notmData?.networks?.[0]) {
-      document.getElementById('notmContent').innerHTML = this.templates.notmWidget(notmData.networks[0]);
+    // Guard: Only load sidebar on non-static pages
+    if (!PageTypeDetector.isFeatureAllowed('sidebarWidgets')) {
+      return;
     }
 
-    // Featured sidebar
-    const featuredData = await this.fetchAPI('getNetworks', { limit: 3, featured: 'true' });
-    if (featuredData?.networks) {
-      document.getElementById('featuredSidebarList').innerHTML = 
-        featuredData.networks.map(n => this.templates.sidebarNetworkItem(n)).join('');
-    }
+    try {
+      // Network of the Month - with element check
+      const notmContent = document.getElementById('notmContent');
+      if (notmContent) {
+        const notmData = await this.fetchAPI('getNetworks', { limit: 1, network_of_month: 'true' });
+        if (notmData?.networks?.[0]) {
+          notmContent.innerHTML = this.templates.notmWidget(notmData.networks[0]);
+        }
+      }
 
-    // Update category counts
-    const categories = await this.fetchAPI('getCategories');
-    if (categories?.categories) {
-      this.updateCategoryDropdown(categories.categories);
+      // Featured sidebar - with element check
+      const featuredSidebarList = document.getElementById('featuredSidebarList');
+      if (featuredSidebarList) {
+        const featuredData = await this.fetchAPI('getNetworks', { limit: 3, featured: 'true' });
+        if (featuredData?.networks) {
+          featuredSidebarList.innerHTML = 
+            featuredData.networks.map(n => this.templates.sidebarNetworkItem(n)).join('');
+        }
+      }
+
+      // Update category dropdown - with element check
+      const categoryDropdown = document.getElementById('categoryDropdown');
+      if (categoryDropdown) {
+        const categories = await this.fetchAPI('getCategories');
+        if (categories?.categories) {
+          this.updateCategoryDropdown(categories.categories);
+        }
+      }
+    } catch (error) {
+      console.error('[NetworksApp] Sidebar data error:', error);
+      // Sidebar errors are non-fatal - don't show to user
     }
   },
 
@@ -353,6 +487,8 @@ const NetworksApp = {
     
     // Show loading state
     const submitBtn = form.querySelector('button[type="submit"]');
+    if (!submitBtn) return;
+    
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Submitting...';
     submitBtn.disabled = true;
@@ -375,7 +511,6 @@ const NetworksApp = {
   },
 
   trackOutboundClick(url) {
-    // Google Analytics tracking
     if (window.gtag) {
       gtag('event', 'click', {
         event_category: 'outbound',
@@ -394,8 +529,6 @@ const NetworksApp = {
   // ================= HTML TEMPLATES =================
 
   templates: {
-    // MODIFIED: filtersBar() function DELETED
-
     loading() {
       return `
         <div class="loading-spinner">
@@ -834,7 +967,7 @@ const NetworksApp = {
     }
   },
 
-  // ================= FILTER HANDLERS (Agent 4 extends these) =================
+  // ================= FILTER HANDLERS =================
 
   handleSort(sortBy) {
     this.state.currentFilters.sort = sortBy;
@@ -853,9 +986,20 @@ const NetworksApp = {
   }
 };
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => NetworksApp.init());
-} else {
+// ================= SAFE INITIALIZATION =================
+
+// Only initialize when DOM is ready AND PageTypeDetector is available
+function initializeNetworksApp() {
+  if (typeof PageTypeDetector === 'undefined') {
+    console.error('[NetworksApp] PageTypeDetector not loaded. Retrying in 100ms...');
+    setTimeout(initializeNetworksApp, 100);
+    return;
+  }
   NetworksApp.init();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeNetworksApp);
+} else {
+  initializeNetworksApp();
 }
