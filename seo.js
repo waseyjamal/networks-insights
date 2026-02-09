@@ -1,24 +1,53 @@
 /**
  * NETWORKS INSIGHTS - SEO & ANALYTICS MODULE
  * Agent 5: Complete SEO, Schema, Tracking
- * Version: 1.0
+ * Version: 2.0 (Defensive Architecture)
+ * Dependencies: PageTypeDetector (MUST LOAD FIRST)
  */
 
 const SEOModule = {
   config: {
     siteName: 'Networks Insights',
     siteUrl: 'https://www.networksinsights.com',
-    logoUrl: 'logoUrl: 'https://cdn.jsdelivr.net/gh/waseyjamal/networks-insights@main/logo.png',',
+    logoUrl: 'https://cdn.jsdelivr.net/gh/waseyjamal/networks-insights@main/logo.png',
     twitterHandle: '@networksinsights',
     fbAppId: '', // Add if you have Facebook App
     gaMeasurementId: 'G-09Y5SL0JR6' // Replace with your GA4 ID
   },
 
-  // Initialize SEO module
+  // Initialization guard
+  _initialized: false,
+
+  /**
+   * Initialize - DEFENSIVE ENTRY POINT
+   * SEO runs on ALL page types (including static)
+   */
   init() {
-    this.detectPageAndUpdateSEO();
-    this.initAnalytics();
-    this.trackEvents();
+    // Prevent double initialization
+    if (this._initialized) {
+      console.log('[SEOModule] Already initialized, skipping');
+      return;
+    }
+
+    // CRITICAL: Check dependencies
+    if (!window.PageTypeDetector) {
+      console.error('[SEOModule] PageTypeDetector not found! Running minimal SEO only.');
+      this.initAnalytics();
+      return;
+    }
+
+    console.log('[SEOModule] Initializing...');
+
+    try {
+      this.detectPageAndUpdateSEO();
+      this.initAnalytics();
+      this.trackEvents();
+      this._initialized = true;
+      console.log('[SEOModule] Initialization complete');
+    } catch (error) {
+      console.error('[SEOModule] Initialization error:', error);
+      // SEO errors are non-fatal - continue
+    }
   },
 
   // ================= PAGE DETECTION & SEO =================
@@ -27,6 +56,9 @@ const SEOModule = {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
     const slug = path.match(/\/p\/([^.]+)\.html/)?.[1];
+
+    // Get page type from detector if available
+    const pageType = window.PageTypeDetector ? PageTypeDetector.detect() : null;
 
     // Homepage
     if (path === '/' || path === '/index.html') {
@@ -40,9 +72,23 @@ const SEOModule = {
       return;
     }
 
+    // Static Pages (check before detail to avoid conflicts)
+    const staticSlugs = ['about', 'contact', 'resources', 'privacy-policy', 'terms', 'terms-of-service', 'disclaimer', 'advertise', 'add-network'];
+    if (slug && staticSlugs.includes(slug)) {
+      this.setStaticPageSEOBySlug(slug);
+      return;
+    }
+
     // Network Detail Page
-    if (slug && !['affiliate-networks', 'dating-networks', 'gambling-networks', 'finance-networks', 'crypto-networks', 'health-networks', 'reviews', 'resources', 'blog', 'about', 'contact', 'advertise', 'add-network', 'privacy-policy', 'terms', 'disclaimer'].includes(slug)) {
-      this.loadNetworkSEO(slug);
+    // Only fetch network data if we're on a detail page (has network param or looks like network slug)
+    if (params.get('network') || (slug && !this.isCategorySlug(slug))) {
+      const networkSlug = params.get('network') || slug;
+      if (networkSlug && window.NetworksApp) {
+        this.loadNetworkSEO(networkSlug);
+      } else {
+        // Fallback if NetworksApp not available
+        this.setStaticPageSEO('Network Details', 'View affiliate network details, reviews, and ratings.');
+      }
       return;
     }
 
@@ -59,26 +105,55 @@ const SEOModule = {
       this.setCategorySEO('Crypto Affiliate Networks', 'Cryptocurrency and bitcoin affiliate networks. Find the best crypto offers and exchanges.');
     } else if (path.includes('/p/health-networks.html')) {
       this.setCategorySEO('Health & Beauty Networks', 'Health, wellness, and beauty affiliate networks. Nutra and supplement offers.');
-    }
-
-    // Static Pages
-    else if (path.includes('/p/reviews.html')) {
+    } else if (path.includes('/p/reviews.html')) {
       this.setStaticPageSEO('Recent Reviews', 'Read the latest reviews from affiliate marketers. Real feedback on networks, payments, and support.');
     } else if (path.includes('/p/resources.html')) {
       this.setStaticPageSEO('Affiliate Marketing Resources', 'Essential tools, traffic sources, and spy tools for affiliate marketers.');
-    } else if (path.includes('/p/about.html')) {
-      this.setStaticPageSEO('About Us', 'Learn about Networks Insights - the most comprehensive affiliate network directory.');
-    } else if (path.includes('/p/contact.html')) {
-      this.setStaticPageSEO('Contact Us', 'Get in touch with Networks Insights. Advertise, add your network, or report an issue.');
-    } else if (path.includes('/p/advertise.html')) {
-      this.setStaticPageSEO('Advertise With Us', 'Promote your affiliate network to thousands of marketers. Featured listings, banners, and sponsored reviews.');
-    } else if (path.includes('/p/add-network.html')) {
-      this.setStaticPageSEO('Add Your Network', 'Submit your affiliate network to our directory. Get discovered by thousands of affiliates.');
-    } else if (path.includes('/p/privacy-policy.html')) {
-      this.setStaticPageSEO('Privacy Policy', 'Networks Insights privacy policy. How we handle your data and protect your information.');
-    } else if (path.includes('/p/terms.html')) {
-      this.setStaticPageSEO('Terms of Service', 'Terms and conditions for using Networks Insights affiliate network directory.');
+    } else {
+      // Default for unknown pages
+      this.setStaticPageSEO('Networks Insights', 'Discover affiliate networks with real reviews and ratings.');
     }
+  },
+
+  isCategorySlug(slug) {
+    const categorySlugs = [
+      'affiliate-networks',
+      'dating-networks',
+      'gambling-networks',
+      'finance-networks',
+      'crypto-networks',
+      'health-networks',
+      'advertising-networks',
+      'reviews',
+      'resources',
+      'blog',
+      'about',
+      'contact',
+      'advertise',
+      'add-network',
+      'privacy-policy',
+      'terms',
+      'terms-of-service',
+      'disclaimer'
+    ];
+    return categorySlugs.includes(slug);
+  },
+
+  setStaticPageSEOBySlug(slug) {
+    const pageMap = {
+      'about': { title: 'About Us', desc: 'Learn about Networks Insights - the most comprehensive affiliate network directory.' },
+      'contact': { title: 'Contact Us', desc: 'Get in touch with Networks Insights. Advertise, add your network, or report an issue.' },
+      'resources': { title: 'Affiliate Marketing Resources', desc: 'Essential tools, traffic sources, and spy tools for affiliate marketers.' },
+      'privacy-policy': { title: 'Privacy Policy', desc: 'Networks Insights privacy policy. How we handle your data and protect your information.' },
+      'terms': { title: 'Terms of Service', desc: 'Terms and conditions for using Networks Insights affiliate network directory.' },
+      'terms-of-service': { title: 'Terms of Service', desc: 'Terms and conditions for using Networks Insights affiliate network directory.' },
+      'disclaimer': { title: 'Disclaimer', desc: 'Networks Insights disclaimer and legal notices.' },
+      'advertise': { title: 'Advertise With Us', desc: 'Promote your affiliate network to thousands of marketers. Featured listings, banners, and sponsored reviews.' },
+      'add-network': { title: 'Add Your Network', desc: 'Submit your affiliate network to our directory. Get discovered by thousands of affiliates.' }
+    };
+
+    const page = pageMap[slug] || { title: 'Networks Insights', desc: 'Discover affiliate networks with real reviews and ratings.' };
+    this.setStaticPageSEO(page.title, page.desc);
   },
 
   // ================= SEO SETTERS =================
@@ -224,7 +299,13 @@ const SEOModule = {
   },
 
   async loadNetworkSEO(slug) {
-    // Fetch network data for rich SEO
+    // Guard: Only fetch if NetworksApp is available
+    if (!window.NetworksApp) {
+      console.log('[SEOModule] NetworksApp not available - using fallback SEO');
+      this.setStaticPageSEO('Network Details', 'View affiliate network details, reviews, and ratings.');
+      return;
+    }
+
     try {
       const data = await NetworksApp.fetchAPI('getNetwork', { slug });
       if (!data || !data.network) {
@@ -316,7 +397,7 @@ const SEOModule = {
       });
 
     } catch (error) {
-      console.error('SEO load error:', error);
+      console.error('[SEOModule] Network SEO load error:', error);
       this.setStaticPageSEO('Network Details', 'View affiliate network details, reviews, and ratings.');
     }
   },
@@ -393,10 +474,14 @@ const SEOModule = {
   // ================= SCHEMA.ORG INJECTION =================
 
   injectSchema(schemaData) {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.textContent = JSON.stringify(schemaData);
-    document.head.appendChild(script);
+    try {
+      const script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.textContent = JSON.stringify(schemaData);
+      document.head.appendChild(script);
+    } catch (error) {
+      console.error('[SEOModule] Schema injection error:', error);
+    }
   },
 
   // ================= ANALYTICS =================
@@ -404,87 +489,116 @@ const SEOModule = {
   initAnalytics() {
     // Google Analytics 4
     if (this.config.gaMeasurementId && this.config.gaMeasurementId !== 'G-YOUR_MEASUREMENT_ID') {
-      const gaScript = document.createElement('script');
-      gaScript.async = true;
-      gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${this.config.gaMeasurementId}`;
-      document.head.appendChild(gaScript);
+      try {
+        const gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${this.config.gaMeasurementId}`;
+        document.head.appendChild(gaScript);
 
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', this.config.gaMeasurementId, {
-        send_page_view: true,
-        custom_map: {
-          'dimension1': 'network_name',
-          'dimension2': 'filter_type'
-        }
-      });
-      window.gtag = gtag;
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', this.config.gaMeasurementId, {
+          send_page_view: true,
+          custom_map: {
+            'dimension1': 'network_name',
+            'dimension2': 'filter_type'
+          }
+        });
+        window.gtag = gtag;
+      } catch (error) {
+        console.error('[SEOModule] Analytics init error:', error);
+      }
     }
   },
 
   trackEvents() {
     // Outbound link tracking (affiliate clicks)
     document.addEventListener('click', (e) => {
-      const link = e.target.closest('a');
-      if (!link || !link.href) return;
+      try {
+        const link = e.target.closest('a');
+        if (!link || !link.href) return;
 
-      // Affiliate link click
-      if (link.classList.contains('btn-join') || link.href.includes('ref=') || link.href.includes('utm_')) {
-        this.trackEvent('affiliate_click', {
-          network_name: link.closest('.network-card')?.dataset?.slug || 'unknown',
-          destination: link.href
-        });
-      }
+        // Affiliate link click
+        if (link.classList.contains('btn-join') || link.href.includes('ref=') || link.href.includes('utm_')) {
+          this.trackEvent('affiliate_click', {
+            network_name: link.closest('.network-card')?.dataset?.slug || 'unknown',
+            destination: link.href
+          });
+        }
 
-      // External link click
-      if (!link.href.includes('networksinsights.com') && !link.href.startsWith('/')) {
-        this.trackEvent('outbound_click', {
-          destination: link.href
-        });
+        // External link click
+        if (!link.href.includes('networksinsights.com') && !link.href.startsWith('/')) {
+          this.trackEvent('outbound_click', {
+            destination: link.href
+          });
+        }
+      } catch (error) {
+        // Tracking errors are non-fatal
       }
     });
 
     // Filter usage tracking
     document.addEventListener('change', (e) => {
-      if (e.target.matches('.filter-select')) {
-        this.trackEvent('filter_used', {
-          filter_type: e.target.dataset.filter || e.target.id,
-          filter_value: e.target.value
-        });
+      try {
+        if (e.target.matches('.filter-select')) {
+          this.trackEvent('filter_used', {
+            filter_type: e.target.dataset.filter || e.target.id,
+            filter_value: e.target.value
+          });
+        }
+      } catch (error) {
+        // Tracking errors are non-fatal
       }
     });
 
     // Search tracking
     document.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && e.target.id === 'globalSearch') {
-        this.trackEvent('search', {
-          search_term: e.target.value
-        });
+      try {
+        if (e.key === 'Enter' && e.target.id === 'globalSearch') {
+          this.trackEvent('search', {
+            search_term: e.target.value
+          });
+        }
+      } catch (error) {
+        // Tracking errors are non-fatal
       }
     });
 
     // Review submission tracking
     document.addEventListener('submit', (e) => {
-      if (e.target.id === 'reviewForm') {
-        this.trackEvent('review_submit_attempt', {
-          network_slug: e.target.querySelector('[name="network_slug"]')?.value
-        });
+      try {
+        if (e.target.id === 'reviewForm') {
+          this.trackEvent('review_submit_attempt', {
+            network_slug: e.target.querySelector('[name="network_slug"]')?.value
+          });
+        }
+      } catch (error) {
+        // Tracking errors are non-fatal
       }
     });
   },
 
   trackEvent(eventName, params = {}) {
-    if (window.gtag) {
-      gtag('event', eventName, params);
+    try {
+      if (window.gtag) {
+        gtag('event', eventName, params);
+      }
+    } catch (error) {
+      // Silently fail - tracking is not critical
     }
-    console.log('Track:', eventName, params);
   }
 };
 
-// Initialize
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => SEOModule.init());
-} else {
+// ================= SAFE INITIALIZATION =================
+
+// SEO runs on ALL pages, so we initialize immediately
+function initializeSEOModule() {
   SEOModule.init();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeSEOModule);
+} else {
+  initializeSEOModule();
 }
