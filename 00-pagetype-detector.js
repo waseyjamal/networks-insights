@@ -148,5 +148,10 @@ const PageTypeDetector = {
   }
 };
 
+// ⭐ CRITICAL: Make globally accessible
+window.PageTypeDetector = PageTypeDetector;
+
 // Auto-run
 PageTypeDetector.detect();
+
+console.log('[PageTypeDetector] Loaded and ready');
