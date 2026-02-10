@@ -20,11 +20,24 @@ const PageTypeDetector = {
   // ✅ Explicit static page slugs (AUTHORITATIVE)
   STATIC_SLUGS: [
     'about',
-    'contact',
-    'resources',
-    'privacy-policy',
-    'terms',
-    'terms-of-service',
+
+  // Contact
+  'contact',
+  'contact-us_7',
+
+  // Resources
+  'resources',
+  'resources_33',
+
+  // Privacy
+  'privacy-policy',
+  'privacy-policy_56',
+
+  // Terms
+  'terms',
+  'terms-of-service',
+  'terms-of-service_7',
+
     'disclaimer',
     'advertise',
     'add-network'
