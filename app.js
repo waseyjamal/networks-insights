@@ -46,32 +46,30 @@ const NetworksApp = {
     const pageType = PageTypeDetector.detect();
     const config = PageTypeDetector.getConfig();
 
-    // STATIC PAGES: Exit immediately - no dynamic rendering
-        // STATIC PAGES: Exit immediately - no dynamic rendering
+        // STATIC PAGES: Move Blogger content to main area
     if (pageType === PageTypeDetector.TYPES.STATIC) {
-      console.log('[NetworksApp] Static page detected - skipping all dynamic initialization');
+      console.log('[NetworksApp] Static page detected - moving content');
       
-      // ✅ FIX: Remove loading spinner and hide dynamic UI elements
       const dynamicContent = document.getElementById('dynamic-content');
-      if (dynamicContent) {
-        dynamicContent.innerHTML = ''; // Clear the loading spinner
+      const mainSection = document.getElementById('main');
+      
+      // CRITICAL: Move Blogger static content to where the spinner is
+      if (dynamicContent && mainSection) {
+        dynamicContent.innerHTML = mainSection.innerHTML;
+        mainSection.style.display = 'none';
+      } else if (dynamicContent) {
+        dynamicContent.innerHTML = ''; // Fallback: just clear spinner
       }
       
-      // Hide filters bar (not needed on static pages)
+      // Hide dynamic-only UI elements
       const filtersBar = document.getElementById('category-filters');
-      if (filtersBar) {
-        filtersBar.style.display = 'none';
-      }
+      if (filtersBar) filtersBar.style.display = 'none';
       
-      // Hide pagination (not needed on static pages)
       const paginationContainer = document.getElementById('pagination-container');
-      if (paginationContainer) {
-        paginationContainer.style.display = 'none';
-      }
+      if (paginationContainer) paginationContainer.style.display = 'none';
       
-      // Hide top banner ad on static pages (optional - remove if you want ads on static pages)
       const adTopBanner = document.getElementById('adTopBanner');
-      if (adTopBanner && window.PageTypeDetector && !PageTypeDetector.isFeatureAllowed('ads')) {
+      if (adTopBanner && !PageTypeDetector.isFeatureAllowed('ads')) {
         adTopBanner.style.display = 'none';
       }
       
