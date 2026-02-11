@@ -46,46 +46,25 @@ const NetworksApp = {
     const pageType = PageTypeDetector.detect();
     const config = PageTypeDetector.getConfig();
 
-           // STATIC PAGES: Handle static content properly
-    if (pageType === PageTypeDetector.TYPES.STATIC) {
-      console.log('[NetworksApp] Static page detected - handling static content');
-      
-      const moveContent = () => {
-        const dynamicContent = document.getElementById('dynamic-content');
-        const mainSection = document.getElementById('main');
-        
-        if (dynamicContent && mainSection && mainSection.innerHTML.trim().length > 0) {
-          // Move the actual DOM content, not just innerHTML
-          while (mainSection.firstChild) {
-            dynamicContent.appendChild(mainSection.firstChild);
-          }
-          mainSection.style.display = 'none';
-          
-          // Hide dynamic-only elements
-          const filtersBar = document.getElementById('category-filters');
-          if (filtersBar) filtersBar.style.display = 'none';
-          
-          const paginationContainer = document.getElementById('pagination-container');
-          if (paginationContainer) paginationContainer.style.display = 'none';
-          
-          const adTopBanner = document.getElementById('adTopBanner');
-          if (adTopBanner && !PageTypeDetector.isFeatureAllowed('ads')) {
-            adTopBanner.style.display = 'none';
-          }
-          
-          console.log('[NetworksApp] Static content moved successfully');
-        } else {
-          // Retry if Blogger hasn't rendered content yet
-          console.log('[NetworksApp] Waiting for Blogger content...');
-          setTimeout(moveContent, 200);
-        }
-      };
-      
-      // Wait for Blogger to render the section
-      setTimeout(moveContent, 300);
-      return;
-    }
-
+   // STATIC PAGES: Exit immediately - no dynamic rendering
+if (pageType === PageTypeDetector.TYPES.STATIC) {
+  console.log('[NetworksApp] Static page detected - skipping all dynamic initialization');
+  
+  // Hide sidebar on static pages
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.style.display = 'none';
+  }
+  
+  // Adjust main content to full width
+  const siteWrapper = document.querySelector('.site-wrapper');
+  if (siteWrapper) {
+    siteWrapper.style.gridTemplateColumns = '1fr';
+    siteWrapper.style.maxWidth = '900px';
+  }
+  
+  return;
+}
     // Verify dynamic-content exists before proceeding
     const dynamicContent = document.getElementById('dynamic-content');
     if (!dynamicContent) {
