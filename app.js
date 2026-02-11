@@ -47,8 +47,34 @@ const NetworksApp = {
     const config = PageTypeDetector.getConfig();
 
     // STATIC PAGES: Exit immediately - no dynamic rendering
+        // STATIC PAGES: Exit immediately - no dynamic rendering
     if (pageType === PageTypeDetector.TYPES.STATIC) {
       console.log('[NetworksApp] Static page detected - skipping all dynamic initialization');
+      
+      // ✅ FIX: Remove loading spinner and hide dynamic UI elements
+      const dynamicContent = document.getElementById('dynamic-content');
+      if (dynamicContent) {
+        dynamicContent.innerHTML = ''; // Clear the loading spinner
+      }
+      
+      // Hide filters bar (not needed on static pages)
+      const filtersBar = document.getElementById('category-filters');
+      if (filtersBar) {
+        filtersBar.style.display = 'none';
+      }
+      
+      // Hide pagination (not needed on static pages)
+      const paginationContainer = document.getElementById('pagination-container');
+      if (paginationContainer) {
+        paginationContainer.style.display = 'none';
+      }
+      
+      // Hide top banner ad on static pages (optional - remove if you want ads on static pages)
+      const adTopBanner = document.getElementById('adTopBanner');
+      if (adTopBanner && window.PageTypeDetector && !PageTypeDetector.isFeatureAllowed('ads')) {
+        adTopBanner.style.display = 'none';
+      }
+      
       return;
     }
 
