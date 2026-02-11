@@ -17,27 +17,31 @@ const PageTypeDetector = {
     UNKNOWN: 'UNKNOWN'
   },
 
-  // ✅ Explicit static page slugs (AUTHORITATIVE)
+ // ✅ Explicit static page slugs (AUTHORITATIVE)
   STATIC_SLUGS: [
+    // About
     'about',
+    'about-us',
 
-  // Contact
-  'contact',
-  'contact-us_7',
+    // Contact
+    'contact',
+    'contact-us',
+    'contact-us_7',
 
-  // Resources
-  'resources',
-  'resources_33',
+    // Resources
+    'resources',
+    'resources_33',
 
-  // Privacy
-  'privacy-policy',
-  'privacy-policy_56',
+    // Privacy
+    'privacy-policy',
+    'privacy-policy_56',
 
-  // Terms
-  'terms',
-  'terms-of-service',
-  'terms-of-service_7',
+    // Terms
+    'terms',
+    'terms-of-service',
+    'terms-of-service_7',
 
+    // Other static pages
     'disclaimer',
     'advertise',
     'add-network'
